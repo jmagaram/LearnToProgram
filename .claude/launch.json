@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "LearnToProgram",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "LearnToProgram/LearnToProgram.csproj", "--launch-profile", "http", "--urls", "http://localhost:5177"],
+      "port": 5177
+    }
+  ]
+}

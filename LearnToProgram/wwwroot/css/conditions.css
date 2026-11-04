@@ -179,3 +179,12 @@
 .ccp .find-row .verdict.ok { color: var(--pass); }
 .ccp .find-row .verdict.wrong { color: var(--fail); }
 .ccp .find-row .prints { flex-basis: 100%; color: var(--muted); font-size: 0.85rem; }
+
+/* Linked List 1 page (Pages/LinkedList1.razor): read code, choose or type the answer */
+.ccp .code .cm { color: var(--muted); font-style: italic; }
+.ccp .intro.he { margin-top: -8px; }
+.ccp .read-answer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ccp .read-answer .verdict { font-weight: 700; font-family: system-ui, sans-serif; }
+.ccp .read-answer .verdict.ok { color: var(--pass); }
+.ccp .read-answer .verdict.wrong { color: var(--fail); }
+.ccp input.find-x.wide { width: 22ch; }
