@@ -1,0 +1,217 @@
+@page "/linked-list-1"
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using LearnToProgram.Practice.LinkedList
+@inject IJSRuntime JS
+
+<PageTitle>Linked List 1</PageTitle>
+
+<div class="ccp trace">
+<header class="top">
+    <div>
+        <h1>Linked List 1: Read the code</h1>
+        <p class="intro">
+            Read each piece of code and choose or type the answer. You will see right away if you are correct.
+            If not, try again. Do the questions in order. Lists are shown like <code>[2 -&gt; 1 -&gt; 5]</code>.
+        </p>
+        <p class="intro he" lang="he" dir="rtl">קראו את הקוד ובחרו או כתבו את התשובה. אם טעיתם, נסו שוב.</p>
+        <details class="api">
+            <summary>What an <code>IntNode</code> can do</summary>
+            <table>
+                <tbody>
+                    <tr><td><code>new IntNode(5)</code></td><td>a new node holding 5, with no next node</td></tr>
+                    <tr><td><code>new IntNode(5, other)</code></td><td>a new node holding 5, followed by <code>other</code></td></tr>
+                    <tr><td><code>node.GetValue()</code></td><td>the number in the node</td></tr>
+                    <tr><td><code>node.GetNext()</code></td><td>the next node, or <code>null</code> at the end of the list</td></tr>
+                    <tr><td><code>node.SetValue(7)</code></td><td>change the number in the node</td></tr>
+                    <tr><td><code>node.SetNext(other)</code></td><td>change which node comes next</td></tr>
+                    <tr><td><code>node.HasNext()</code></td><td><code>true</code> if there is a next node</td></tr>
+                </tbody>
+            </table>
+        </details>
+        <div class="toolbar">
+            <span class="score" aria-live="polite">Correct: @CorrectCount of @Total@(CorrectCount == Total ? " — Perfect! Now try Linked List 2." : "")</span>
+            <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
+        </div>
+        <nav class="chips" aria-label="Jump to a question">
+            @foreach (var q in LinkedListReading.All)
+            {
+                <a href="#q@(q.Number)" data-status="@StatusOf(q)" @onclick:preventDefault @onclick="() => ScrollTo(q)">@q.Number</a>
+            }
+        </nav>
+    </div>
+</header>
+
+<div class="problems">
+    @foreach (var level in LinkedListReading.Levels)
+    {
+        <section class="level">
+            <h2>Level @level.Number: @level.Title</h2>
+            <div class="level-notes">
+                @((MarkupString)level.NotesHtml)
+                @if (level.NotesHebrew is not null)
+                {
+                    <p class="he" lang="he" dir="rtl">@level.NotesHebrew</p>
+                }
+            </div>
+
+            @foreach (var q in LinkedListReading.All.Where(q => q.Level == level.Number))
+            {
+                var ok = IsOk(q);
+                <article class="card" id="q@(q.Number)" data-status="@StatusOf(q)">
+                    <div class="card-head">
+                        <span class="num">@(q.Number).</span>
+                        <h3>
+                            @q.Instruction
+                            @if (q.InstructionHebrew is not null)
+                            {
+                                <span class="he" lang="he" dir="rtl">@q.InstructionHebrew</span>
+                            }
+                        </h3>
+                        <span class="badge">@(ok == true ? "✓ done" : "")</span>
+                    </div>
+                    <pre class="code">@((MarkupString)Highlight(q.Code))</pre>
+
+                    @if (q.Kind == ReadKind.Choose)
+                    {
+                        var picked = picks.TryGetValue(q.Number, out var c) ? c : -1;
+                        <div class="read-answer">
+                            <div class="choices" role="radiogroup" aria-label="Answer for question @q.Number">
+                                @for (int i = 0; i < q.Choices.Length; i++)
+                                {
+                                    var choice = i;
+                                    <button type="button" role="radio" aria-checked="@(picked == choice ? "true" : "false")"
+                                            class="choice @(picked == choice ? (ok == true ? "picked right" : "picked wrong") : "")"
+                                            @onclick="() => Pick(q, choice)">
+                                        <Output Lines="q.Choices[choice]" />
+                                    </button>
+                                }
+                            </div>
+                            <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
+                        </div>
+                    }
+                    else
+                    {
+                        var id = $"type-{q.Number}";
+                        <div class="read-answer">
+                            <label class="find-label" for="@id">@(q.Kind == ReadKind.TypeList ? "list is" : "Prints")</label>
+                            <input id="@id" class="find-x @(q.Kind == ReadKind.TypeList ? "wide" : "")" type="text"
+                                   inputmode="@(q.Kind == ReadKind.TypeNumber ? "numeric" : "text")" autocomplete="off"
+                                   placeholder="@(q.Kind == ReadKind.TypeList ? "1 -> 2 -> 3" : "")"
+                                   value="@(typed.GetValueOrDefault(q.Number) ?? "")"
+                                   @oninput="e => Type(q, e)" @onblur="() => Check(q)"
+                                   @onkeydown="e => CheckOnEnter(q, e)" />
+                            <button type="button" class="check" @onclick="() => Check(q)">Check answer</button>
+                            <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</div>
+
+<footer>Your answers are saved in this browser.</footer>
+</div>
+
+@code {
+    const string StorageKey = "linked-list-reading-v1";
+
+    sealed class Saved
+    {
+        public Dictionary<int, int> Picks { get; set; } = new();
+        public Dictionary<int, string> Typed { get; set; } = new();
+        public Dictionary<int, string> Checked { get; set; } = new();
+    }
+
+    Dictionary<int, int> picks = new();
+    Dictionary<int, string> typed = new();
+    Dictionary<int, string> checkedTyped = new(); // the value each box had when it was last checked
+
+    int Total => LinkedListReading.All.Length;
+
+    int CorrectCount => LinkedListReading.All.Count(q => IsOk(q) == true);
+
+    // null = not answered yet
+    bool? IsOk(ReadQuestion q)
+    {
+        if (q.Kind == ReadKind.Choose)
+        {
+            if (!picks.TryGetValue(q.Number, out var c) || c < 0 || c >= q.Choices.Length) return null;
+            return q.Matches(q.Choices[c]);
+        }
+        // Only show a result after Check answer, Enter or Tab, and hide it again once the student edits it.
+        if (!typed.TryGetValue(q.Number, out var s) || string.IsNullOrWhiteSpace(s)) return null;
+        if (checkedTyped.GetValueOrDefault(q.Number) != s) return null;
+        return q.MatchesTyped(s);
+    }
+
+    string StatusOf(ReadQuestion q) => IsOk(q) switch { true => "pass", false => "fail", _ => "idle" };
+
+    static string Verdict(bool? ok) => ok switch { true => "✓ Correct!", false => "✗ Wrong", _ => "" };
+
+    // Colors C# keywords and comments. The code is our own, so a simple pattern is enough.
+    static readonly Regex Tokens = new(@"(//[^\n]*)|\b(int|new|null|while|for|if|else)\b");
+
+    static string Highlight(string code) =>
+        Tokens.Replace(System.Net.WebUtility.HtmlEncode(code), m =>
+            m.Groups[1].Success ? $"<span class=\"cm\">{m.Value}</span>" : $"<span class=\"kw\">{m.Value}</span>");
+
+    void Pick(ReadQuestion q, int choice)
+    {
+        picks[q.Number] = choice;
+        Save();
+    }
+
+    void Type(ReadQuestion q, ChangeEventArgs e)
+    {
+        typed[q.Number] = e.Value?.ToString() ?? "";
+        Save();
+    }
+
+    void CheckOnEnter(ReadQuestion q, KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Check(q);
+    }
+
+    void Check(ReadQuestion q)
+    {
+        checkedTyped[q.Number] = typed.GetValueOrDefault(q.Number) ?? "";
+        Save();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+#if DEBUG
+        foreach (var problem in LinkedListReading.Validate()) Console.WriteLine("Linked List 1: " + problem);
+#endif
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("practiceStorage.load", StorageKey);
+            if (json is not null && JsonSerializer.Deserialize<Saved>(json) is { } saved)
+            {
+                picks = saved.Picks;
+                typed = saved.Typed;
+                checkedTyped = saved.Checked;
+            }
+        }
+        catch (Exception) { /* storage unavailable: start fresh */ }
+    }
+
+    async Task ClearAll()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your answers on this page and start over?")) return;
+        picks.Clear();
+        typed.Clear();
+        checkedTyped.Clear();
+        Save();
+    }
+
+    void Save()
+    {
+        var json = JsonSerializer.Serialize(new Saved { Picks = picks, Typed = typed, Checked = checkedTyped });
+        _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
+    }
+
+    async Task ScrollTo(ReadQuestion q) => await JS.InvokeVoidAsync("practiceScrollTo", "q" + q.Number);
+}

@@ -1,16 +1,17 @@
-﻿@page "/linked-list"
+﻿@page "/linked-list-2"
+@page "/linked-list"
 @using System.Text.Json
 @using System.Text.RegularExpressions
 @using LearnToProgram.Practice
 @using LearnToProgram.Practice.LinkedList
 @inject IJSRuntime JS
 
-<PageTitle>Linked List</PageTitle>
+<PageTitle>Linked List 2</PageTitle>
 
 <div class="ccp">
 <header class="top">
     <div>
-        <h1>Linked List Practice</h1>
+        <h1>Linked List 2: Write the code</h1>
         <p class="intro">
             Write each method using <code>IntNode</code>. Replace the <code>// TODO</code> with your code, then press <b>Run</b>
             (or Ctrl+Enter / ⌘+Enter) to check it against the tests. Lists are shown like
@@ -49,7 +50,7 @@
         <nav class="chips" aria-label="Jump to a problem">
             @foreach (var p in LinkedListProblems.All)
             {
-                <a href="linked-list#@p.Anchor" data-status="@StatusOf(p)" title="@p.Name"
+                <a href="linked-list-2#@p.Anchor" data-status="@StatusOf(p)" title="@p.Name"
                    @onclick:preventDefault @onclick="() => ScrollTo(p)">@p.Id</a>
             }
         </nav>
