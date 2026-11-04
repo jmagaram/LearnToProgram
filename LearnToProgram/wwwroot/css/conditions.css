@@ -1,4 +1,4 @@
-/* Styles for the Conditions page (Pages/Conditions.razor). Everything is inside .ccp
+/* Styles for the practice pages (Pages/Conditions.razor, Pages/LinkedList.razor). Everything is inside .ccp
    so it doesn't change the rest of the app. */
 .ccp {
   --surface: #ffffff;
@@ -22,7 +22,7 @@
   color: var(--text);
 }
 .ccp code, .ccp textarea.answer, .ccp .code, .ccp table { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-.ccp code { font-size: inherit; }
+.ccp code { font-size: inherit; color: inherit; }
 
 .ccp .top { border-bottom: 1px solid var(--border); padding: 0 0 14px; }
 .ccp h1 { margin: 0 0 4px; font-size: 1.6rem; }
@@ -141,3 +141,12 @@
 .ccp td.num-cell { text-align: right; padding-right: 18px; }
 
 .ccp footer { color: var(--muted); font-size: 0.85rem; padding: 0 0 40px; }
+
+/* Linked List page */
+.ccp details.api { margin: 0 0 14px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+.ccp details.api summary { cursor: pointer; font-weight: 600; }
+.ccp details.api table { margin: 8px 0 4px; font-family: inherit; }
+.ccp details.api td { white-space: normal; vertical-align: top; }
+.ccp details.api td:first-child { white-space: nowrap; }
+.ccp details.api p { margin: 6px 0 0; font-size: 0.92rem; color: var(--muted); }
+.ccp .tip-line { margin: 8px 0 0; font-size: 0.92rem; }
