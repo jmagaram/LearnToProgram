@@ -1,0 +1,24 @@
+@* Shows the lines a piece of code prints, or "(nothing)". Used on the Conditions 1 page. *@
+@if (Lines.Length == 0)
+{
+    <span class="out nothing">(nothing)</span>
+}
+else if (Inline)
+{
+    <span class="out">@string.Join(" / ", Lines)</span>
+}
+else
+{
+    <span class="out">
+        @foreach (var line in Lines)
+        {
+            <span class="line">@line</span>
+        }
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired] public string[] Lines { get; set; } = Array.Empty<string>();
+
+    [Parameter] public bool Inline { get; set; }
+}

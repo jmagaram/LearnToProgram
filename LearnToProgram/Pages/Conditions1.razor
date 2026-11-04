@@ -1,0 +1,265 @@
+@page "/conditions-1"
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using LearnToProgram.Practice
+@inject IJSRuntime JS
+
+<PageTitle>Conditions 1</PageTitle>
+
+<div class="ccp trace">
+<header class="top">
+    <div>
+        <h1>Conditions 1: Read the code</h1>
+        <p class="intro">
+            Read each piece of code. For every number in the table, choose what the code prints.
+            You will see right away if you are correct. If not, try again. Do the questions in order.
+        </p>
+        <div class="toolbar">
+            <span class="score" aria-live="polite">Correct: @CorrectCount of @TotalCount@(CorrectCount == TotalCount ? " — Perfect! Now try Conditions 2." : "")</span>
+            <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
+        </div>
+        <nav class="chips" aria-label="Jump to a question">
+            @foreach (var q in Tracing.All)
+            {
+                <a href="#q@(q.Number)" data-status="@StatusOf(q)" @onclick:preventDefault @onclick="() => ScrollTo(q)">@q.Number</a>
+            }
+        </nav>
+    </div>
+</header>
+
+<div class="problems">
+    @foreach (var level in Tracing.Levels)
+    {
+        <section class="level">
+            <h2>Level @level.Number: @level.Title</h2>
+            <div class="level-notes">
+                @((MarkupString)level.NotesHtml)
+                @if (level.NotesHebrew is not null)
+                {
+                    <p class="he" lang="he" dir="rtl">@level.NotesHebrew</p>
+                }
+            </div>
+
+            @foreach (var q in Tracing.All.Where(q => q.Level == level.Number))
+            {
+                <article class="card" id="q@(q.Number)" data-status="@StatusOf(q)">
+                    <div class="card-head">
+                        <span class="num">@(q.Number).</span>
+                        <h3>
+                            @q.Instruction
+                            @if (q.InstructionHebrew is not null)
+                            {
+                                <span class="he" lang="he" dir="rtl">@q.InstructionHebrew</span>
+                            }
+                        </h3>
+                        <span class="badge">@BadgeOf(q)</span>
+                    </div>
+                    <pre class="code">@((MarkupString)Highlight(q.Code))</pre>
+
+                    @if (q.Kind == TraceKind.Trace)
+                    {
+                        <table class="trace-table">
+                            <thead>
+                                <tr>
+                                    @foreach (var name in q.Params)
+                                    {
+                                        <th>@name</th>
+                                    }
+                                    <th>What does it print?</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int r = 0; r < q.Inputs.Length; r++)
+                                {
+                                    var row = r;
+                                    var key = Key(q, row);
+                                    var picked = picks.TryGetValue(key, out var c) ? c : -1;
+                                    var ok = RowOk(q, row);
+                                    <tr>
+                                        @foreach (var a in q.Inputs[row])
+                                        {
+                                            <td class="num-cell">@a</td>
+                                        }
+                                        <td>
+                                            <div class="choices" role="radiogroup" aria-label="Output when @Describe(q, q.Inputs[row])">
+                                                @for (int i = 0; i < q.Choices.Length; i++)
+                                                {
+                                                    var choice = i;
+                                                    <button type="button" role="radio" aria-checked="@(picked == choice ? "true" : "false")"
+                                                            class="choice @(picked == choice ? (ok == true ? "picked right" : "picked wrong") : "")"
+                                                            @onclick="() => Pick(q, row, choice)">
+                                                        <Output Lines="q.Choices[choice]" />
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="find-rows">
+                            @for (int r = 0; r < q.Choices.Length; r++)
+                            {
+                                var row = r;
+                                var key = Key(q, row);
+                                var ok = RowOk(q, row);
+                                <div class="find-row">
+                                    <span class="find-label">Prints</span>
+                                    <div class="target"><Output Lines="q.Choices[row]" /></div>
+                                    <label class="find-label" for="find-@key">when x =</label>
+                                    <input id="find-@key" class="find-x" type="text" inputmode="numeric" autocomplete="off"
+                                           value="@(finds.GetValueOrDefault(key) ?? "")"
+                                           @oninput="e => Type(q, row, e)" @onblur="() => Check(q, row)"
+                                           @onkeydown="e => CheckOnEnter(q, row, e)" />
+                                    <button type="button" class="check" @onclick="() => Check(q, row)">Check answer</button>
+                                    <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
+                                    @if (ok == false && ParsedFind(key) is int x)
+                                    {
+                                        <span class="prints">x = @x prints: <Output Lines="q.Run(new[] { x })" Inline="true" /></span>
+                                    }
+                                    else if (ok == false)
+                                    {
+                                        <span class="prints">Type a whole number, like 42.</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</div>
+
+<footer>Your answers are saved in this browser.</footer>
+</div>
+
+@code {
+    const string StorageKey = "csharp-conditions-reading-v1";
+
+    sealed class Saved
+    {
+        public Dictionary<string, int> Picks { get; set; } = new();
+        public Dictionary<string, string> Finds { get; set; } = new();
+        public Dictionary<string, string> Checked { get; set; } = new();
+    }
+
+    Dictionary<string, int> picks = new();
+    Dictionary<string, string> finds = new();
+    Dictionary<string, string> checkedFinds = new(); // the value each "type a number" box had when it was last checked
+
+    static string Key(TraceQuestion q, int row) => $"{q.Number}-{row}";
+
+    static int RowCount(TraceQuestion q) => q.Kind == TraceKind.Trace ? q.Inputs.Length : q.Choices.Length;
+
+    int TotalCount => Tracing.All.Sum(RowCount);
+
+    int CorrectCount => Tracing.All.Sum(q => Enumerable.Range(0, RowCount(q)).Count(r => RowOk(q, r) == true));
+
+    int? ParsedFind(string key) =>
+        finds.TryGetValue(key, out var s) && int.TryParse(s.Trim(), out var x) ? x : null;
+
+    // null = not answered yet
+    bool? RowOk(TraceQuestion q, int row)
+    {
+        var key = Key(q, row);
+        if (q.Kind == TraceKind.Trace)
+        {
+            if (!picks.TryGetValue(key, out var c) || c < 0 || c >= q.Choices.Length) return null;
+            return q.Matches(q.Inputs[row], q.Choices[c]);
+        }
+        // Only show a result after Check answer, Enter or Tab, and hide it again once the student edits the number.
+        if (!finds.TryGetValue(key, out var s) || string.IsNullOrWhiteSpace(s)) return null;
+        if (checkedFinds.GetValueOrDefault(key) != s) return null;
+        return ParsedFind(key) is int x && q.Matches(new[] { x }, q.Choices[row]);
+    }
+
+    string StatusOf(TraceQuestion q)
+    {
+        var results = Enumerable.Range(0, RowCount(q)).Select(r => RowOk(q, r)).ToList();
+        if (results.All(r => r == true)) return "pass";
+        if (results.Any(r => r == false)) return "fail";
+        return "idle";
+    }
+
+    string BadgeOf(TraceQuestion q)
+    {
+        var right = Enumerable.Range(0, RowCount(q)).Count(r => RowOk(q, r) == true);
+        return right == RowCount(q) ? "✓ done" : right > 0 ? $"{right} of {RowCount(q)}" : "";
+    }
+
+    static string Verdict(bool? ok) => ok switch { true => "✓ Correct!", false => "✗ Wrong", _ => "" };
+
+    static string Describe(TraceQuestion q, int[] args) =>
+        string.Join(" and ", q.Params.Zip(args, (n, a) => $"{n} is {a}"));
+
+    // Colors C# keywords and strings. The code is our own, so a simple pattern is enough.
+    static readonly Regex Tokens = new(@"(""[^""]*"")|\b(if|else|int)\b");
+
+    static string Highlight(string code) =>
+        Tokens.Replace(System.Net.WebUtility.HtmlEncode(code).Replace("&quot;", "\""), m =>
+            m.Groups[1].Success
+                ? $"<span class=\"str\">{m.Value.Replace("\"", "&quot;")}</span>"
+                : $"<span class=\"kw\">{m.Value}</span>");
+
+    void Pick(TraceQuestion q, int row, int choice)
+    {
+        picks[Key(q, row)] = choice;
+        Save();
+    }
+
+    void Type(TraceQuestion q, int row, ChangeEventArgs e)
+    {
+        finds[Key(q, row)] = e.Value?.ToString() ?? "";
+        Save();
+    }
+
+    void CheckOnEnter(TraceQuestion q, int row, KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Check(q, row);
+    }
+
+    void Check(TraceQuestion q, int row)
+    {
+        var key = Key(q, row);
+        checkedFinds[key] = finds.GetValueOrDefault(key) ?? "";
+        Save();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("practiceStorage.load", StorageKey);
+            if (json is not null && JsonSerializer.Deserialize<Saved>(json) is { } saved)
+            {
+                picks = saved.Picks;
+                finds = saved.Finds;
+                checkedFinds = saved.Checked;
+            }
+        }
+        catch (Exception) { /* storage unavailable: start fresh */ }
+    }
+
+    async Task ClearAll()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your answers on this page and start over?")) return;
+        picks.Clear();
+        finds.Clear();
+        checkedFinds.Clear();
+        Save();
+    }
+
+    void Save()
+    {
+        var json = JsonSerializer.Serialize(new Saved { Picks = picks, Finds = finds, Checked = checkedFinds });
+        _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
+    }
+
+    async Task ScrollTo(TraceQuestion q) => await JS.InvokeVoidAsync("practiceScrollTo", "q" + q.Number);
+}
