@@ -29,7 +29,7 @@ public sealed class CSharpRunner
 {
     // Reference assemblies (System.Runtime, System.Console) are embedded in this app
     // by the project file, because WebAssembly apps have no DLL files on disk to point at.
-    static readonly Lazy<MetadataReference[]> References = new(() =>
+    internal static readonly Lazy<MetadataReference[]> References = new(() =>
     {
         var assembly = typeof(CSharpRunner).Assembly;
         return assembly.GetManifestResourceNames()
@@ -42,10 +42,10 @@ public sealed class CSharpRunner
             .ToArray();
     });
 
-    static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.CSharp12);
+    internal static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.CSharp12);
 
     // The browser has a single thread, so build without parallelism.
-    static readonly CSharpCompilationOptions CompileOptions = new(
+    internal static readonly CSharpCompilationOptions CompileOptions = new(
         OutputKind.DynamicallyLinkedLibrary,
         optimizationLevel: OptimizationLevel.Release,
         concurrentBuild: false);
@@ -201,7 +201,7 @@ public sealed class CSharpRunner
         return null;
     }
 
-    static CompileMessage ToMessage(Diagnostic d)
+    internal static CompileMessage ToMessage(Diagnostic d)
     {
         // Hide the generated class name: "'Student.P12(int)'" reads better as "'P12(int)'".
         var message = d.GetMessage(CultureInfo.InvariantCulture).Replace("'Student.", "'");

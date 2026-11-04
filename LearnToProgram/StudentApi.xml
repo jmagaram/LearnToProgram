@@ -21,6 +21,7 @@
     <type fullname="System.Text.StringBuilder" preserve="all" />
     <type fullname="System.Index" preserve="all" />
     <type fullname="System.Range" preserve="all" />
+    <type fullname="System.Collections.Generic.List`1" preserve="all" />
   </assembly>
   <assembly fullname="System.Console">
     <type fullname="System.Console" preserve="all" />

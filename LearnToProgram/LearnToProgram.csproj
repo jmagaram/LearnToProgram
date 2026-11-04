@@ -31,10 +31,10 @@
   -->
   <Target Name="EmbedStudentReferenceAssemblies" AfterTargets="ResolveTargetingPackAssets">
     <ItemGroup>
-      <_StudentRef Include="@(Reference)" Condition="'%(Filename)' == 'System.Runtime' Or '%(Filename)' == 'System.Console'" />
+      <_StudentRef Include="@(Reference)" Condition="'%(Filename)' == 'System.Runtime' Or '%(Filename)' == 'System.Console' Or '%(Filename)' == 'System.Collections'" />
       <EmbeddedResource Include="@(_StudentRef->'%(FullPath)')" LogicalName="ref/%(Filename)%(Extension)" WithCulture="false" Type="Non-Resx" />
     </ItemGroup>
-    <Error Condition="'@(_StudentRef->Count())' != '2'" Text="Could not find System.Runtime.dll and System.Console.dll reference assemblies to embed." />
+    <Error Condition="'@(_StudentRef->Count())' != '3'" Text="Could not find the System.Runtime, System.Console and System.Collections reference assemblies to embed." />
   </Target>
 
 </Project>
