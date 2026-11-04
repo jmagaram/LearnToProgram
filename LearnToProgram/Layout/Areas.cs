@@ -33,7 +33,8 @@ public static class Areas
     /// <summary>The area that owns a relative path like "conditions-2", or null (for the home page).</summary>
     public static Area? Find(string relativePath)
     {
-        var path = relativePath.Split('?', '#')[0].Trim('/').ToLowerInvariant();
+        // only the first segment counts, so "conditions-1/7" (question 7) belongs to Conditions
+        var path = relativePath.Split('?', '#')[0].Trim('/').Split('/')[0].ToLowerInvariant();
         if (path.Length == 0) return null;
         return All.FirstOrDefault(a => a.Exercises.Any(e => e.Href == path))
             // older links such as /conditions or /linked-list still work
