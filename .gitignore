@@ -1,0 +1,42 @@
+# .NET build output
+bin/
+obj/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Publish output
+publish/
+*.pubxml.user
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Test results and coverage
+TestResults/
+[Tt]est[Rr]esult*/
+coverage*/
+*.coverage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment / secrets
+.env
+*.env.local
+appsettings.Development.local.json
+
+# Claude Code local worktrees
+.claude/worktrees/
