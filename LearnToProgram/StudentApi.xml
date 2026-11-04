@@ -1,0 +1,28 @@
+<!--
+  Types that student code may use. The trimmer keeps every member of these types
+  in the published app, even if the app itself never calls them.
+-->
+<linker>
+  <assembly fullname="System.Private.CoreLib">
+    <type fullname="System.Math" preserve="all" />
+    <type fullname="System.Boolean" preserve="all" />
+    <type fullname="System.Byte" preserve="all" />
+    <type fullname="System.Char" preserve="all" />
+    <type fullname="System.Int16" preserve="all" />
+    <type fullname="System.Int32" preserve="all" />
+    <type fullname="System.Int64" preserve="all" />
+    <type fullname="System.Double" preserve="all" />
+    <type fullname="System.Single" preserve="all" />
+    <type fullname="System.Decimal" preserve="all" />
+    <type fullname="System.String" preserve="all" />
+    <type fullname="System.Convert" preserve="all" />
+    <type fullname="System.Array" preserve="all" />
+    <type fullname="System.Random" preserve="all" />
+    <type fullname="System.Text.StringBuilder" preserve="all" />
+    <type fullname="System.Index" preserve="all" />
+    <type fullname="System.Range" preserve="all" />
+  </assembly>
+  <assembly fullname="System.Console">
+    <type fullname="System.Console" preserve="all" />
+  </assembly>
+</linker>

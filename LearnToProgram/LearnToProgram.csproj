@@ -5,11 +5,36 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- Roslyn ships compiler messages in many languages; keep English only. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <!--
+    Publishing "trims" .NET code the app doesn't use, to make the download smaller. Student
+    code on the Conditions page can call methods this app never uses itself (Math.Max,
+    Console.WriteLine(int)...), so StudentApi.xml tells the trimmer to keep those types whole.
+  -->
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="StudentApi.xml" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>
+
+  <!--
+    The C# compiler needs "reference assemblies" that describe the .NET types students
+    can use (int, bool, Math, Console...). A WebAssembly app has no DLL files on disk,
+    so embed the ones from the .NET targeting pack inside this app.
+  -->
+  <Target Name="EmbedStudentReferenceAssemblies" AfterTargets="ResolveTargetingPackAssets">
+    <ItemGroup>
+      <_StudentRef Include="@(Reference)" Condition="'%(Filename)' == 'System.Runtime' Or '%(Filename)' == 'System.Console'" />
+      <EmbeddedResource Include="@(_StudentRef->'%(FullPath)')" LogicalName="ref/%(Filename)%(Extension)" WithCulture="false" Type="Non-Resx" />
+    </ItemGroup>
+    <Error Condition="'@(_StudentRef->Count())' != '2'" Text="Could not find System.Runtime.dll and System.Console.dll reference assemblies to embed." />
+  </Target>
 
 </Project>
