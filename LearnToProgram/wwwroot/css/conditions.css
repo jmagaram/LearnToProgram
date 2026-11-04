@@ -188,3 +188,62 @@
 .ccp .read-answer .verdict.ok { color: var(--pass); }
 .ccp .read-answer .verdict.wrong { color: var(--fail); }
 .ccp input.find-x.wide { width: 22ch; }
+
+/* Conditions 1 one-question layout (.focus): question picker on top, code on the left, answers on the right.
+   Sized to fit the screen under the top bar without scrolling on laptops; stacks on narrow screens. */
+.ccp.focus { max-width: 1280px; display: flex; flex-direction: column; gap: 12px; }
+.ccp.focus .focus-head { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.ccp.focus .focus-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-bottom: 8px; }
+.ccp.focus .focus-title h1 { font-size: 1.3rem; margin: 0; }
+
+.ccp .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ccp .picker-level { display: flex; align-items: center; gap: 5px; }
+.ccp .picker-label { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+.ccp .picker-group { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--surface-2); }
+.ccp button.pick {
+  min-width: 34px; height: 30px; padding: 0 6px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted);
+  font-size: 0.85rem; font-weight: 700; position: relative;
+}
+.ccp button.pick[data-status="pass"] { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.ccp button.pick[data-status="fail"] { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+/* the selected question is filled: blue if not finished, otherwise its status color */
+.ccp button.pick[aria-current] { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.ccp button.pick[aria-current][data-status="pass"] { background: var(--pass); border-color: var(--pass); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--pass); }
+.ccp button.pick[aria-current][data-status="fail"] { background: var(--fail); border-color: var(--fail); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--fail); }
+/* a small mark as well as the color, for students who can't tell red from green */
+.ccp button.pick[data-status="pass"]::after,
+.ccp button.pick[data-status="fail"]::after {
+  position: absolute; top: -7px; right: -5px; font-size: 0.65rem; line-height: 1;
+  width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+}
+.ccp button.pick[data-status="pass"]::after { content: "✓"; background: var(--pass); }
+.ccp button.pick[data-status="fail"]::after { content: "✗"; background: var(--fail); }
+
+.ccp .legend { display: flex; gap: 12px; margin-left: auto; color: var(--muted); font-size: 0.78rem; }
+.ccp .legend span { display: inline-flex; align-items: center; gap: 4px; }
+.ccp .legend i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); background: var(--surface); }
+.ccp .legend i[data-status="pass"] { background: var(--pass-bg); border-color: var(--pass); }
+.ccp .legend i[data-status="fail"] { background: var(--fail-bg); border-color: var(--fail); }
+
+.ccp .focus-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px;
+  background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.ccp .focus-body[data-status="pass"] { border-top-color: var(--pass); }
+.ccp .focus-body[data-status="fail"] { border-top-color: var(--fail); }
+.ccp .focus-left { display: flex; flex-direction: column; min-width: 0; }
+.ccp .focus-right { min-width: 0; }
+.ccp .level-line h2 { font-size: 1.05rem; margin: 0 0 2px; }
+.ccp .level-line .level-notes { margin-bottom: 10px; font-size: 0.9rem; }
+.ccp .focus-body[data-status="pass"] .badge { color: var(--pass); }
+.ccp .focus-body[data-status="fail"] .badge { color: var(--fail); }
+.ccp .step-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 6px; }
+.ccp .done-line { margin: 12px 0 0; font-weight: 700; color: var(--pass); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .ccp .focus-body { grid-template-columns: minmax(0, 1fr); }
+  .ccp .legend { margin-left: 0; width: 100%; }
+}

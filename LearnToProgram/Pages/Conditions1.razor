@@ -1,146 +1,190 @@
 @page "/conditions-1"
+@page "/conditions-1/{Number:int}"
 @using System.Text.Json
 @using System.Text.RegularExpressions
 @using LearnToProgram.Practice
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
-<PageTitle>Conditions 1</PageTitle>
+<PageTitle>Conditions 1 · Question @Current.Number</PageTitle>
 
-<div class="ccp trace">
-<header class="top">
-    <div>
-        <h1>Conditions 1: Read the code</h1>
-        <p class="intro">
-            Read each piece of code. For every number in the table, choose what the code prints.
-            You will see right away if you are correct. If not, try again. Do the questions in order.
-        </p>
-        <div class="toolbar">
-            <span class="score" aria-live="polite">Correct: @CorrectCount of @TotalCount@(CorrectCount == TotalCount ? " — Perfect! Now try Conditions 2." : "")</span>
-            <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
-        </div>
-        <nav class="chips" aria-label="Jump to a question">
-            @foreach (var q in Tracing.All)
-            {
-                <a href="#q@(q.Number)" data-status="@StatusOf(q)" @onclick:preventDefault @onclick="() => ScrollTo(q)">@q.Number</a>
-            }
-        </nav>
+<div class="ccp trace focus">
+<header class="focus-head">
+    <div class="focus-title">
+        <h1>Read the code</h1>
+        <span class="score" aria-live="polite">Correct: @CorrectCount of @TotalCount@(CorrectCount == TotalCount ? " — Perfect! Now try part 2." : "")</span>
+        <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
     </div>
+    <nav class="picker" aria-label="Choose a question">
+        @foreach (var level in Tracing.Levels)
+        {
+            <div class="picker-level" title="Level @level.Number: @level.Title">
+                <span class="picker-label">L@(level.Number)</span>
+                <div class="picker-group">
+                    @foreach (var q in Tracing.All.Where(q => q.Level == level.Number))
+                    {
+                        var status = StatusOf(q);
+                        <button type="button" class="pick" data-status="@status"
+                                aria-current="@(q == Current ? "step" : null)"
+                                aria-label="Question @q.Number, @StatusWords(status)"
+                                @onclick="() => Go(q)">@q.Number</button>
+                    }
+                </div>
+            </div>
+        }
+        <div class="legend" aria-hidden="true">
+            <span><i data-status="pass"></i>correct</span>
+            <span><i data-status="fail"></i>wrong</span>
+            <span><i data-status="idle"></i>not tried</span>
+        </div>
+    </nav>
 </header>
 
-<div class="problems">
-    @foreach (var level in Tracing.Levels)
-    {
-        <section class="level">
-            <h2>Level @level.Number: @level.Title</h2>
+@{
+    var cq = Current;
+    var lvl = Tracing.Levels.First(l => l.Number == cq.Level);
+}
+<div class="focus-body" data-status="@StatusOf(cq)">
+    <section class="focus-left" aria-label="Question @cq.Number">
+        <div class="level-line">
+            <h2>Level @lvl.Number: @lvl.Title</h2>
             <div class="level-notes">
-                @((MarkupString)level.NotesHtml)
-                @if (level.NotesHebrew is not null)
+                @((MarkupString)lvl.NotesHtml)
+                @if (lvl.NotesHebrew is not null)
                 {
-                    <p class="he" lang="he" dir="rtl">@level.NotesHebrew</p>
+                    <p class="he" lang="he" dir="rtl">@lvl.NotesHebrew</p>
                 }
             </div>
+        </div>
+        <div class="card-head">
+            <span class="num">@(cq.Number).</span>
+            <h3>
+                @cq.Instruction
+                @if (cq.InstructionHebrew is not null)
+                {
+                    <span class="he" lang="he" dir="rtl">@cq.InstructionHebrew</span>
+                }
+            </h3>
+            <span class="badge">@BadgeOf(cq)</span>
+        </div>
+        <pre class="code">@((MarkupString)Highlight(cq.Code))</pre>
+        <div class="step-nav">
+            <button type="button" disabled="@(Index == 0)" @onclick="() => Go(Index - 1)">‹ Previous</button>
+            <button type="button" class="@(StatusOf(cq) == "pass" ? "primary" : "")"
+                    disabled="@(Index == Tracing.All.Length - 1)" @onclick="() => Go(Index + 1)">Next ›</button>
+        </div>
+    </section>
 
-            @foreach (var q in Tracing.All.Where(q => q.Level == level.Number))
-            {
-                <article class="card" id="q@(q.Number)" data-status="@StatusOf(q)">
-                    <div class="card-head">
-                        <span class="num">@(q.Number).</span>
-                        <h3>
-                            @q.Instruction
-                            @if (q.InstructionHebrew is not null)
+    <section class="focus-right" aria-label="Your answers">
+        @if (cq.Kind == TraceKind.Trace)
+        {
+            <table class="trace-table">
+                <thead>
+                    <tr>
+                        @foreach (var name in cq.Params)
+                        {
+                            <th>@name</th>
+                        }
+                        <th>What does it print?</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int r = 0; r < cq.Inputs.Length; r++)
+                    {
+                        var q = cq;
+                        var row = r;
+                        var key = Key(q, row);
+                        var picked = picks.TryGetValue(key, out var c) ? c : -1;
+                        var ok = RowOk(q, row);
+                        <tr @key="key">
+                            @foreach (var a in q.Inputs[row])
                             {
-                                <span class="he" lang="he" dir="rtl">@q.InstructionHebrew</span>
+                                <td class="num-cell">@a</td>
                             }
-                        </h3>
-                        <span class="badge">@BadgeOf(q)</span>
-                    </div>
-                    <pre class="code">@((MarkupString)Highlight(q.Code))</pre>
-
-                    @if (q.Kind == TraceKind.Trace)
-                    {
-                        <table class="trace-table">
-                            <thead>
-                                <tr>
-                                    @foreach (var name in q.Params)
+                            <td>
+                                <div class="choices" role="radiogroup" aria-label="Output when @Describe(q, q.Inputs[row])">
+                                    @for (int i = 0; i < q.Choices.Length; i++)
                                     {
-                                        <th>@name</th>
-                                    }
-                                    <th>What does it print?</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (int r = 0; r < q.Inputs.Length; r++)
-                                {
-                                    var row = r;
-                                    var key = Key(q, row);
-                                    var picked = picks.TryGetValue(key, out var c) ? c : -1;
-                                    var ok = RowOk(q, row);
-                                    <tr>
-                                        @foreach (var a in q.Inputs[row])
-                                        {
-                                            <td class="num-cell">@a</td>
-                                        }
-                                        <td>
-                                            <div class="choices" role="radiogroup" aria-label="Output when @Describe(q, q.Inputs[row])">
-                                                @for (int i = 0; i < q.Choices.Length; i++)
-                                                {
-                                                    var choice = i;
-                                                    <button type="button" role="radio" aria-checked="@(picked == choice ? "true" : "false")"
-                                                            class="choice @(picked == choice ? (ok == true ? "picked right" : "picked wrong") : "")"
-                                                            @onclick="() => Pick(q, row, choice)">
-                                                        <Output Lines="q.Choices[choice]" />
-                                                    </button>
-                                                }
-                                            </div>
-                                        </td>
-                                        <td class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                    else
-                    {
-                        <div class="find-rows">
-                            @for (int r = 0; r < q.Choices.Length; r++)
-                            {
-                                var row = r;
-                                var key = Key(q, row);
-                                var ok = RowOk(q, row);
-                                <div class="find-row">
-                                    <span class="find-label">Prints</span>
-                                    <div class="target"><Output Lines="q.Choices[row]" /></div>
-                                    <label class="find-label" for="find-@key">when x =</label>
-                                    <input id="find-@key" class="find-x" type="text" inputmode="numeric" autocomplete="off"
-                                           value="@(finds.GetValueOrDefault(key) ?? "")"
-                                           @oninput="e => Type(q, row, e)" @onblur="() => Check(q, row)"
-                                           @onkeydown="e => CheckOnEnter(q, row, e)" />
-                                    <button type="button" class="check" @onclick="() => Check(q, row)">Check answer</button>
-                                    <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
-                                    @if (ok == false && ParsedFind(key) is int x)
-                                    {
-                                        <span class="prints">x = @x prints: <Output Lines="q.Run(new[] { x })" Inline="true" /></span>
-                                    }
-                                    else if (ok == false)
-                                    {
-                                        <span class="prints">Type a whole number, like 42.</span>
+                                        var choice = i;
+                                        <button type="button" role="radio" aria-checked="@(picked == choice ? "true" : "false")"
+                                                class="choice @(picked == choice ? (ok == true ? "picked right" : "picked wrong") : "")"
+                                                @onclick="() => Pick(q, row, choice)">
+                                            <Output Lines="q.Choices[choice]" />
+                                        </button>
                                     }
                                 </div>
-                            }
-                        </div>
+                            </td>
+                            <td class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</td>
+                        </tr>
                     }
-                </article>
-            }
-        </section>
-    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="find-rows">
+                @for (int r = 0; r < cq.Choices.Length; r++)
+                {
+                    var q = cq;
+                    var row = r;
+                    var key = Key(q, row);
+                    var ok = RowOk(q, row);
+                    <div class="find-row" @key="key">
+                        <span class="find-label">Prints</span>
+                        <div class="target"><Output Lines="q.Choices[row]" /></div>
+                        <label class="find-label" for="find-@key">when x =</label>
+                        <input id="find-@key" class="find-x" type="text" inputmode="numeric" autocomplete="off"
+                               value="@(finds.GetValueOrDefault(key) ?? "")"
+                               @oninput="e => Type(q, row, e)" @onblur="() => Check(q, row)"
+                               @onkeydown="e => CheckOnEnter(q, row, e)" />
+                        <button type="button" class="check" @onclick="() => Check(q, row)">Check answer</button>
+                        <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
+                        @if (ok == false && ParsedFind(key) is int x)
+                        {
+                            <span class="prints">x = @x prints: <Output Lines="q.Run(new[] { x })" Inline="true" /></span>
+                        }
+                        else if (ok == false)
+                        {
+                            <span class="prints">Type a whole number, like 42.</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        @if (StatusOf(cq) == "pass" && Index < Tracing.All.Length - 1)
+        {
+            <p class="done-line">✓ All correct! <button type="button" class="primary" @onclick="() => Go(Index + 1)">Next question ›</button></p>
+        }
+    </section>
 </div>
-
-<footer>Your answers are saved in this browser.</footer>
 </div>
 
 @code {
     const string StorageKey = "csharp-conditions-reading-v1";
+
+    // The question number from the address, like /conditions-1/7. Without one, the page opens the
+    // first question that isn't finished yet.
+    [Parameter] public int? Number { get; set; }
+
+    int? resumeNumber;
+
+    TraceQuestion Current =>
+        Tracing.All.FirstOrDefault(q => q.Number == (Number ?? resumeNumber)) ?? Tracing.All[0];
+
+    int Index => Array.IndexOf(Tracing.All, Current);
+
+    void Go(int index) => Go(Tracing.All[Math.Clamp(index, 0, Tracing.All.Length - 1)]);
+
+    // replace: true so the browser's Back button leaves the page instead of stepping through questions
+    void Go(TraceQuestion q) => Nav.NavigateTo($"conditions-1/{q.Number}", replace: true);
+
+    static string StatusWords(string status) => status switch
+    {
+        "pass" => "correct",
+        "fail" => "has a wrong answer",
+        _ => "not finished",
+    };
 
     sealed class Saved
     {
@@ -244,6 +288,7 @@
             }
         }
         catch (Exception) { /* storage unavailable: start fresh */ }
+        resumeNumber = Tracing.All.FirstOrDefault(q => StatusOf(q) != "pass")?.Number;
     }
 
     async Task ClearAll()
@@ -260,6 +305,4 @@
         var json = JsonSerializer.Serialize(new Saved { Picks = picks, Finds = finds, Checked = checkedFinds });
         _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
     }
-
-    async Task ScrollTo(TraceQuestion q) => await JS.InvokeVoidAsync("practiceScrollTo", "q" + q.Number);
 }

@@ -12,7 +12,7 @@
             <nav class="exercises" aria-label="@area.Title pages">
                 @foreach (var ex in area.Exercises)
                 {
-                    <NavLink class="exercise" href="@ex.Href" Match="NavLinkMatch.All">
+                    <NavLink class="exercise" href="@ex.Href" Match="NavLinkMatch.Prefix">
                         <span class="ex-num">@ex.Number</span><span class="ex-title">@ex.Title</span>
                     </NavLink>
                 }
