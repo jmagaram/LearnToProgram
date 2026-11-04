@@ -1,8 +1,24 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <header class="topbar">
+        <a class="brand" href="" lang="he" dir="rtl" title="Home">מרום</a>
+        @if (area is not null)
+        {
+            <a class="back" href="">‹ Home</a>
+            <span class="area-name">@area.Title</span>
+            <nav class="exercises" aria-label="@area.Title pages">
+                @foreach (var ex in area.Exercises)
+                {
+                    <NavLink class="exercise" href="@ex.Href" Match="NavLinkMatch.All">
+                        <span class="ex-num">@ex.Number</span><span class="ex-title">@ex.Title</span>
+                    </NavLink>
+                }
+            </nav>
+        }
+    </header>
 
     <main>
         <article class="content px-4">
@@ -10,3 +26,21 @@
         </article>
     </main>
 </div>
+
+@code {
+    private Area? area;
+
+    protected override void OnInitialized()
+    {
+        area = Areas.Find(Nav.ToBaseRelativePath(Nav.Uri));
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        area = Areas.Find(Nav.ToBaseRelativePath(e.Location));
+        StateHasChanged();
+    }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+}
