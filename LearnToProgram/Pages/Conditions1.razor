@@ -102,34 +102,33 @@
                     }
                     else
                     {
-                        <table class="trace-table">
-                            <thead>
-                                <tr><th>It should print</th><th>x</th><th></th></tr>
-                            </thead>
-                            <tbody>
-                                @for (int r = 0; r < q.Choices.Length; r++)
-                                {
-                                    var row = r;
-                                    var key = Key(q, row);
-                                    var ok = RowOk(q, row);
-                                    <tr>
-                                        <td><div class="target"><Output Lines="q.Choices[row]" /></div></td>
-                                        <td>
-                                            <input class="find-x" type="text" inputmode="numeric" autocomplete="off"
-                                                   aria-label="A number x that prints this"
-                                                   value="@(finds.GetValueOrDefault(key) ?? "")" @oninput="e => Type(q, row, e)" />
-                                        </td>
-                                        <td class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">
-                                            @Verdict(ok)
-                                            @if (ok == false && ParsedFind(key) is int x)
-                                            {
-                                                <span class="prints">x = @x prints: <Output Lines="q.Run(new[] { x })" Inline="true" /></span>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="find-rows">
+                            @for (int r = 0; r < q.Choices.Length; r++)
+                            {
+                                var row = r;
+                                var key = Key(q, row);
+                                var ok = RowOk(q, row);
+                                <div class="find-row">
+                                    <span class="find-label">Prints</span>
+                                    <div class="target"><Output Lines="q.Choices[row]" /></div>
+                                    <label class="find-label" for="find-@key">when x =</label>
+                                    <input id="find-@key" class="find-x" type="text" inputmode="numeric" autocomplete="off"
+                                           value="@(finds.GetValueOrDefault(key) ?? "")"
+                                           @oninput="e => Type(q, row, e)" @onblur="() => Check(q, row)"
+                                           @onkeydown="e => CheckOnEnter(q, row, e)" />
+                                    <button type="button" class="check" @onclick="() => Check(q, row)">Check answer</button>
+                                    <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
+                                    @if (ok == false && ParsedFind(key) is int x)
+                                    {
+                                        <span class="prints">x = @x prints: <Output Lines="q.Run(new[] { x })" Inline="true" /></span>
+                                    }
+                                    else if (ok == false)
+                                    {
+                                        <span class="prints">Type a whole number, like 42.</span>
+                                    }
+                                </div>
+                            }
+                        </div>
                     }
                 </article>
             }
@@ -147,10 +146,12 @@
     {
         public Dictionary<string, int> Picks { get; set; } = new();
         public Dictionary<string, string> Finds { get; set; } = new();
+        public Dictionary<string, string> Checked { get; set; } = new();
     }
 
     Dictionary<string, int> picks = new();
     Dictionary<string, string> finds = new();
+    Dictionary<string, string> checkedFinds = new(); // the value each "type a number" box had when it was last checked
 
     static string Key(TraceQuestion q, int row) => $"{q.Number}-{row}";
 
@@ -172,7 +173,9 @@
             if (!picks.TryGetValue(key, out var c) || c < 0 || c >= q.Choices.Length) return null;
             return q.Matches(q.Inputs[row], q.Choices[c]);
         }
+        // Only show a result after Check answer, Enter or Tab, and hide it again once the student edits the number.
         if (!finds.TryGetValue(key, out var s) || string.IsNullOrWhiteSpace(s)) return null;
+        if (checkedFinds.GetValueOrDefault(key) != s) return null;
         return ParsedFind(key) is int x && q.Matches(new[] { x }, q.Choices[row]);
     }
 
@@ -216,6 +219,18 @@
         Save();
     }
 
+    void CheckOnEnter(TraceQuestion q, int row, KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Check(q, row);
+    }
+
+    void Check(TraceQuestion q, int row)
+    {
+        var key = Key(q, row);
+        checkedFinds[key] = finds.GetValueOrDefault(key) ?? "";
+        Save();
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -225,6 +240,7 @@
             {
                 picks = saved.Picks;
                 finds = saved.Finds;
+                checkedFinds = saved.Checked;
             }
         }
         catch (Exception) { /* storage unavailable: start fresh */ }
@@ -235,12 +251,13 @@
         if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your answers on this page and start over?")) return;
         picks.Clear();
         finds.Clear();
+        checkedFinds.Clear();
         Save();
     }
 
     void Save()
     {
-        var json = JsonSerializer.Serialize(new Saved { Picks = picks, Finds = finds });
+        var json = JsonSerializer.Serialize(new Saved { Picks = picks, Finds = finds, Checked = checkedFinds });
         _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
     }
 
