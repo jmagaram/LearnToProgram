@@ -15,29 +15,9 @@
         <span class="score" aria-live="polite">Correct: @CorrectCount of @TotalCount@(CorrectCount == TotalCount ? " — Perfect! Now try part 2." : "")</span>
         <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
     </div>
-    <nav class="picker" aria-label="Choose a question">
-        @foreach (var level in Tracing.Levels)
-        {
-            <div class="picker-level" title="Level @level.Number: @level.Title">
-                <span class="picker-label">L@(level.Number)</span>
-                <div class="picker-group">
-                    @foreach (var q in Tracing.All.Where(q => q.Level == level.Number))
-                    {
-                        var status = StatusOf(q);
-                        <button type="button" class="pick" data-status="@status"
-                                aria-current="@(q == Current ? "step" : null)"
-                                aria-label="Question @q.Number, @StatusWords(status)"
-                                @onclick="() => Go(q)">@q.Number</button>
-                    }
-                </div>
-            </div>
-        }
-        <div class="legend" aria-hidden="true">
-            <span><i data-status="pass"></i>correct</span>
-            <span><i data-status="fail"></i>wrong</span>
-            <span><i data-status="idle"></i>not tried</span>
-        </div>
-    </nav>
+    <QuestionPicker Levels="@(Tracing.Levels.Select(l => new QuestionPicker.PickerLevel(l.Number, l.Title)).ToList())"
+                    Items="@(Tracing.All.Select(q => new QuestionPicker.PickerItem(q.Number, q.Level, StatusOf(q))).ToList())"
+                    Current="Current.Number" OnPick="n => Go(Tracing.All.First(q => q.Number == n))" />
 </header>
 
 @{
@@ -178,13 +158,6 @@
 
     // replace: true so the browser's Back button leaves the page instead of stepping through questions
     void Go(TraceQuestion q) => Nav.NavigateTo($"conditions-1/{q.Number}", replace: true);
-
-    static string StatusWords(string status) => status switch
-    {
-        "pass" => "correct",
-        "fail" => "has a wrong answer",
-        _ => "not finished",
-    };
 
     sealed class Saved
     {

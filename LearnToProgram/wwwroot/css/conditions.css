@@ -1,4 +1,4 @@
-/* Styles for the practice pages (Pages/Conditions.razor, Pages/LinkedList.razor). Everything is inside .ccp
+/* Styles for the practice pages (Conditions 1 and 2, Linked List 1 and 2). Everything is inside .ccp
    so it doesn't change the rest of the app. */
 .ccp {
   --surface: #ffffff;
@@ -246,4 +246,17 @@
 @media (max-width: 900px) {
   .ccp .focus-body { grid-template-columns: minmax(0, 1fr); }
   .ccp .legend { margin-left: 0; width: 100%; }
+}
+
+/* Linked List 1 uses the same layout; its code lines are longer, so the code side gets more room. */
+.ccp.focus.wide-code .focus-body { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.ccp .answer-title { font-size: 0.95rem; color: var(--muted); margin: 0 0 8px; }
+.ccp .choices.stacked { flex-direction: column; align-items: stretch; }
+.ccp .choices.stacked button.choice { font-size: 0.95rem; padding: 7px 12px; }
+.ccp .verdict-line { min-height: 1.5em; margin: 8px 0 0; font-weight: 700; }
+.ccp .verdict-line.ok { color: var(--pass); }
+.ccp .verdict-line.wrong { color: var(--fail); }
+.ccp .focus-right details.api { margin: 16px 0 0; font-size: 0.85rem; }
+@media (max-width: 900px) {
+  .ccp.focus.wide-code .focus-body { grid-template-columns: minmax(0, 1fr); }
 }
