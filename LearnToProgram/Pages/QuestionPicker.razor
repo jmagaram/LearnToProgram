@@ -1,0 +1,45 @@
+@* The row of question numbers at the top of a one-question-at-a-time page (Conditions 1, Linked List 1).
+   Numbers are grouped by level and colored by status: "pass" (correct), "fail" (wrong) or "idle" (not tried). *@
+<nav class="picker" aria-label="Choose a question">
+    @foreach (var level in Levels)
+    {
+        <div class="picker-level" title="Level @level.Number: @level.Title">
+            <span class="picker-label">L@(level.Number)</span>
+            <div class="picker-group">
+                @foreach (var item in Items.Where(i => i.Level == level.Number))
+                {
+                    <button type="button" class="pick" data-status="@item.Status"
+                            aria-current="@(item.Number == Current ? "step" : null)"
+                            aria-label="Question @item.Number, @StatusWords(item.Status)"
+                            @onclick="() => OnPick.InvokeAsync(item.Number)">@item.Number</button>
+                }
+            </div>
+        </div>
+    }
+    <div class="legend" aria-hidden="true">
+        <span><i data-status="pass"></i>correct</span>
+        <span><i data-status="fail"></i>wrong</span>
+        <span><i data-status="idle"></i>not tried</span>
+    </div>
+</nav>
+
+@code {
+    public sealed record PickerLevel(int Number, string Title);
+
+    public sealed record PickerItem(int Number, int Level, string Status);
+
+    [Parameter, EditorRequired] public IReadOnlyList<PickerLevel> Levels { get; set; } = Array.Empty<PickerLevel>();
+
+    [Parameter, EditorRequired] public IReadOnlyList<PickerItem> Items { get; set; } = Array.Empty<PickerItem>();
+
+    [Parameter] public int Current { get; set; }
+
+    [Parameter] public EventCallback<int> OnPick { get; set; }
+
+    static string StatusWords(string status) => status switch
+    {
+        "pass" => "correct",
+        "fail" => "has a wrong answer",
+        _ => "not finished",
+    };
+}
