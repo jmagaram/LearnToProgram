@@ -6,7 +6,7 @@ window.practiceStorage = {
 
 window.practiceScrollTo = id => {
     const el = document.getElementById(id);
-    if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); history.replaceState(null, "", "#" + id); }
+    if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); history.replaceState(null, "", location.pathname + location.search + "#" + id); }
 };
 
 // Code boxes: Tab indents, Enter keeps the indent, Ctrl+Enter / Cmd+Enter runs that problem.

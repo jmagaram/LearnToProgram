@@ -150,3 +150,25 @@
 .ccp details.api td:first-child { white-space: nowrap; }
 .ccp details.api p { margin: 6px 0 0; font-size: 0.92rem; color: var(--muted); }
 .ccp .tip-line { margin: 8px 0 0; font-size: 0.92rem; }
+
+/* Conditions 1 page (Pages/Conditions1.razor): read code, choose the output */
+.ccp .he { display: block; font-family: system-ui, sans-serif; font-weight: 400; color: var(--muted); font-size: 0.95em; margin-top: 2px; }
+.ccp .level-notes p.he { margin: 6px 0 0; }
+.ccp pre.code { white-space: pre; overflow-x: auto; }
+.ccp .code .str { color: #a3480d; }
+.ccp table.trace-table { width: 100%; }
+.ccp table.trace-table td { vertical-align: middle; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--surface-2); white-space: normal; }
+.ccp table.trace-table td.num-cell { font-weight: 700; font-size: 1rem; width: 1%; white-space: nowrap; }
+.ccp .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.ccp button.choice { padding: 4px 10px; background: var(--surface); text-align: left; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.88rem; }
+.ccp button.choice.picked.right { background: var(--pass-bg); border-color: var(--pass); color: var(--pass); font-weight: 700; }
+.ccp button.choice.picked.wrong { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); text-decoration: line-through; }
+.ccp .out .line { display: block; }
+.ccp .out.nothing { font-style: italic; color: var(--muted); font-family: system-ui, sans-serif; }
+.ccp .target { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 0.9rem; }
+.ccp input.find-x { width: 7ch; font: inherit; font-size: 1rem; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.ccp input.find-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ccp table.trace-table td.verdict { width: 1%; white-space: nowrap; font-weight: 700; font-family: system-ui, sans-serif; }
+.ccp td.verdict.ok { color: var(--pass); }
+.ccp td.verdict.wrong { color: var(--fail); }
+.ccp td.verdict .prints { display: block; font-weight: 400; color: var(--muted); font-size: 0.85rem; }
