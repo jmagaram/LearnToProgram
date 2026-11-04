@@ -1,0 +1,143 @@
+/* Styles for the Conditions page (Pages/Conditions.razor). Everything is inside .ccp
+   so it doesn't change the rest of the app. */
+.ccp {
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #d9dde3;
+  --text: #1d232b;
+  --muted: #5b6573;
+  --accent: #3b5bdb;
+  --accent-text: #ffffff;
+  --code-bg: #f3f4f7;
+  --kw: #7048e8;
+  --pass: #2b8a3e;
+  --pass-bg: #e6f4ea;
+  --fail: #c92a2a;
+  --fail-bg: #fdecec;
+  --warn: #a35a00;
+  --warn-bg: #fff4e0;
+  --focus: #4c6ef5;
+
+  max-width: 820px;
+  color: var(--text);
+}
+.ccp code, .ccp textarea.answer, .ccp .code, .ccp table { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.ccp code { font-size: inherit; }
+
+.ccp .top { border-bottom: 1px solid var(--border); padding: 0 0 14px; }
+.ccp h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.ccp .intro { margin: 0 0 14px; color: var(--muted); }
+.ccp .intro code, .ccp .summary code { color: var(--text); background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+
+.ccp .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.ccp .score { font-weight: 600; }
+.ccp .score-detail { color: var(--muted); font-size: 0.9rem; width: 100%; }
+.ccp .score-detail:empty { display: none; }
+.ccp .warming { color: var(--warn); }
+
+.ccp button {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.ccp button:hover:not(:disabled) { filter: brightness(0.97); }
+.ccp button:disabled { opacity: 0.55; cursor: default; }
+.ccp button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.ccp button.ghost { background: transparent; color: var(--muted); margin-left: auto; }
+.ccp button:focus-visible, .ccp textarea:focus-visible, .ccp a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.ccp nav.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ccp nav.chips a {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 32px; height: 28px; padding: 0 6px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--muted);
+  font-size: 0.85rem; font-weight: 600; text-decoration: none;
+}
+.ccp nav.chips a[data-status="pass"] { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.ccp nav.chips a[data-status="fail"] { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+.ccp nav.chips a[data-status="error"] { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+
+.ccp .problems { padding: 8px 0 40px; }
+.ccp .level h2 { margin: 32px 0 6px; font-size: 1.25rem; }
+.ccp .level-notes { margin: 0 0 14px; color: var(--muted); font-size: 0.95rem; }
+.ccp .level-notes code { color: var(--text); background: var(--code-bg); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+.ccp .level-notes ul { margin: 4px 0 0; padding-left: 20px; }
+
+.ccp .card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  /* leave room for the app's sticky top bar when jumping to a problem */
+  scroll-margin-top: 4.5rem;
+}
+.ccp .card[data-status="pass"] { border-left-color: var(--pass); }
+.ccp .card[data-status="fail"] { border-left-color: var(--fail); }
+.ccp .card[data-status="error"] { border-left-color: var(--warn); }
+
+.ccp .card-head { display: flex; align-items: baseline; gap: 10px; }
+.ccp .card-head h3 { margin: 0; font-size: 1.02rem; font-weight: 600; flex: 1; }
+.ccp .num { color: var(--muted); font-weight: 700; min-width: 1.6em; }
+.ccp .badge { font-size: 0.8rem; font-weight: 600; white-space: nowrap; color: inherit; padding: 0; }
+.ccp .card[data-status="pass"] .badge { color: var(--pass); }
+.ccp .card[data-status="fail"] .badge { color: var(--fail); }
+.ccp .card[data-status="error"] .badge { color: var(--warn); }
+
+.ccp .code {
+  margin: 10px 0;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.ccp .code .kw { color: var(--kw); }
+.ccp textarea.answer {
+  display: block;
+  width: calc(100% - 2ch);
+  margin-left: 2ch;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+  tab-size: 4;
+}
+
+.ccp .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.ccp .hint { color: var(--muted); font-size: 0.85rem; }
+
+.ccp .result { margin-top: 10px; }
+.ccp .result.stale { opacity: 0.55; }
+.ccp .summary { font-weight: 600; margin: 0 0 6px; }
+.ccp .summary.pass { color: var(--pass); }
+.ccp .summary.fail { color: var(--fail); }
+.ccp .error-box { background: var(--warn-bg); border: 1px solid var(--warn); border-radius: 8px; padding: 10px 12px; }
+.ccp .error-box .title { font-weight: 600; color: var(--warn); margin: 0 0 6px; }
+.ccp .compiler-msg { margin: 0 0 8px; overflow-wrap: anywhere; }
+.ccp .compiler-msg:last-child { margin-bottom: 0; }
+.ccp .compiler-msg .where { background: var(--surface); padding: 1px 5px; border-radius: 4px; margin-right: 6px; font-size: 0.85rem; }
+.ccp .compiler-msg .tip { margin-top: 3px; font-size: 0.92rem; }
+
+.ccp .table-wrap { overflow-x: auto; }
+.ccp table { border-collapse: collapse; font-size: 0.9rem; }
+.ccp th, .ccp td { padding: 3px 14px 3px 0; text-align: left; white-space: nowrap; }
+.ccp th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); font-family: system-ui, sans-serif; }
+.ccp td.ok { color: var(--pass); font-weight: 700; }
+.ccp td.wrong { color: var(--fail); font-weight: 700; }
+.ccp tr.wrong-row td { background: var(--fail-bg); }
+.ccp td.num-cell { text-align: right; padding-right: 18px; }
+
+.ccp footer { color: var(--muted); font-size: 0.85rem; padding: 0 0 40px; }
