@@ -1,9 +1,34 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Learn to Program</PageTitle>
 
-<h1>Learn to Program</h1>
+<div class="home">
+    <h1>Learn to Program</h1>
+    <p class="lead">Choose a topic. Start with part 1 (read the code), then part 2 (write the code).</p>
+    <p class="lead" lang="he" dir="rtl">בחרו נושא. התחילו בחלק 1 (קריאת קוד), ואחר כך חלק 2 (כתיבת קוד).</p>
 
-<p>Tools and exercises to help you learn programming.</p>
-
-<p lang="he" dir="rtl">כלים ותרגילים שיעזרו לך ללמוד לתכנת.</p>
+    <div class="tiles">
+        @foreach (var area in Areas.All)
+        {
+            <section class="tile">
+                <h2>
+                    @area.Title
+                    <span class="he" lang="he" dir="rtl">@area.HebrewTitle</span>
+                </h2>
+                <p class="blurb">@area.Blurb</p>
+                <div class="parts">
+                    @foreach (var ex in area.Exercises)
+                    {
+                        <a class="part" href="@ex.Href">
+                            <span class="num">@ex.Number</span>
+                            <span class="titles">
+                                <span>@ex.Title</span>
+                                <span class="he" lang="he" dir="rtl">@ex.HebrewTitle</span>
+                            </span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+</div>
