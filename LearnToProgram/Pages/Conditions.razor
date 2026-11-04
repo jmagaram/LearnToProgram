@@ -1,0 +1,296 @@
+@page "/conditions"
+@using System.Text.Json
+@using LearnToProgram.Practice
+@inject IJSRuntime JS
+
+<PageTitle>Conditions</PageTitle>
+
+<div class="ccp">
+<header class="top">
+    <div>
+        <h1>C# Conditions Practice</h1>
+        <p class="intro">
+            This page runs the <b>real C# compiler</b> in your browser. Each problem is a method that must
+            return <code>true</code> or <code>false</code>. Replace <code>TODO</code> with your condition,
+            then press <b>Run</b> (or Ctrl+Enter / ⌘+Enter). You can also use <code>if</code> and <code>else</code>.
+        </p>
+        <div class="toolbar">
+            <button type="button" class="primary" disabled="@(!ready || busy)" @onclick="RunAll">Run all</button>
+            <span class="score" aria-live="polite">Solved: @Solved of @Problems.All.Length@(Solved == Problems.All.Length ? " — Perfect! Every problem is correct!" : "")</span>
+            <button type="button" class="ghost" disabled="@busy" @onclick="ClearAll">Reset all problems</button>
+            <div class="score-detail">
+                @if (!ready)
+                {
+                    <span class="warming">Getting the C# compiler ready. The first time takes a few seconds…</span>
+                }
+                else
+                {
+                    @scoreDetail
+                }
+            </div>
+        </div>
+        <nav class="chips" aria-label="Jump to a problem">
+            @foreach (var p in Problems.All)
+            {
+                <a href="#p@(p.Number)" data-status="@StatusOf(p)" title="@p.Question"
+                   @onclick:preventDefault @onclick="() => ScrollTo(p)">@p.Number</a>
+            }
+        </nav>
+    </div>
+</header>
+
+<div class="problems">
+    @foreach (var level in Problems.Levels)
+    {
+        <section class="level">
+            <h2>Level @level.Number: @level.Title</h2>
+            <div class="level-notes">@((MarkupString)level.NotesHtml)</div>
+
+            @foreach (var p in Problems.All.Where(p => p.Level == level.Number))
+            {
+                var card = cards[p.Number];
+                <article class="card" id="p@(p.Number)" data-status="@StatusOf(p)">
+                    <div class="card-head">
+                        <span class="num">@(p.Number).</span>
+                        <h3>@p.Question</h3>
+                        <span class="badge">@BadgeOf(p)</span>
+                    </div>
+                    <div class="code">
+                        <div><span class="kw">static bool</span> @(p.MethodName)(@for (int i = 0; i < p.Params.Length; i++)
+                            {@(i > 0 ? ", " : "")<span class="kw">int</span>@(" " + p.Params[i])})</div>
+                        <div>{</div>
+                        <textarea class="answer" rows="@RowsFor(card.Code)" spellcheck="false" autocomplete="off"
+                                  autocapitalize="off" aria-label="Code for problem @p.Number"
+                                  value="@card.Code" @oninput="e => OnEdit(p, e)"></textarea>
+                        <div>}</div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" class="run" disabled="@(!ready || busy)" @onclick="() => RunOne(p)">Run</button>
+                        <span class="hint">@p.Tests.Length test values</span>
+                        @if (card.Elapsed is not null)
+                        {
+                            <span class="hint">· compiled and ran in @card.Elapsed</span>
+                        }
+                    </div>
+                    @if (card.Result is { } r)
+                    {
+                        <div class="result @(card.Stale ? "stale" : "")" aria-live="polite">
+                            @if (r.Outcome == Outcome.NotDone)
+                            {
+                                <p class="summary">Not done yet. Replace <code>TODO</code> with your condition.</p>
+                            }
+                            else if (r.Outcome == Outcome.CompileError)
+                            {
+                                <div class="error-box">
+                                    <p class="title">This won't compile</p>
+                                    @foreach (var m in r.Errors)
+                                    {
+                                        <div class="compiler-msg">
+                                            <code class="where">@(m.Line is null ? m.Id : $"Line {m.Line}, col {m.Column}: {m.Id}")</code>
+                                            <span>@m.Message</span>
+                                            @if (m.Hint is not null)
+                                            {
+                                                <div class="tip">Tip: @m.Hint</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="summary @(r.Outcome == Outcome.Pass ? "pass" : "fail")">
+                                    @(r.Outcome == Outcome.Pass ? $"All {r.Rows.Count} correct!" : $"{r.Correct} of {r.Rows.Count} correct. Keep trying.")
+                                </p>
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                @foreach (var name in p.Params)
+                                                {
+                                                    <th>@name</th>
+                                                }
+                                                <th>expected</th><th>your code</th><th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var row in r.Rows)
+                                            {
+                                                <tr class="@(row.Ok ? "" : "wrong-row")">
+                                                    @foreach (var a in row.Args)
+                                                    {
+                                                        <td class="num-cell">@a</td>
+                                                    }
+                                                    <td>@Bool(row.Expected)</td>
+                                                    <td>@(row.Crash is not null ? "crashed: " + row.Crash : Bool(row.Got!.Value))</td>
+                                                    <td class="@(row.Ok ? "ok" : "wrong")">@(row.Ok ? "✓ OK" : "✗ WRONG")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</div>
+
+<footer>
+    Your code is compiled by Roslyn, the same C# compiler that .NET uses, running in your browser with
+    WebAssembly. Nothing is sent to a server. Your code is saved in this browser.
+    A loop that never ends will freeze the page, so reload it if that happens.
+</footer>
+</div>
+
+@code {
+    const string StorageKey = "csharp-conditions-practice-wasm-v1";
+    const string StartingCode = "return TODO;";
+
+    sealed class CardState
+    {
+        public string Code = StartingCode;
+        public ProblemResult? Result;
+        public bool Stale;
+        public string? Elapsed;
+    }
+
+    readonly CSharpRunner runner = new();
+    readonly Dictionary<int, CardState> cards = Problems.All.ToDictionary(p => p.Number, _ => new CardState());
+    bool ready;
+    bool busy;
+    string scoreDetail = "";
+
+    int Solved => cards.Values.Count(c => c.Result?.Outcome == Outcome.Pass);
+
+    static string Bool(bool b) => b ? "true" : "false";
+
+    static int RowsFor(string code) => Math.Max(1, code.Split('\n').Length);
+
+    string StatusOf(Problem p) => cards[p.Number].Result?.Outcome switch
+    {
+        Outcome.Pass => "pass",
+        Outcome.Fail => "fail",
+        Outcome.CompileError => "error",
+        _ => "idle",
+    };
+
+    string BadgeOf(Problem p) => cards[p.Number].Result switch
+    {
+        null => "",
+        { Outcome: Outcome.Pass } => "✓ solved",
+        { Outcome: Outcome.Fail } r => $"{r.Correct} of {r.Rows.Count}",
+        { Outcome: Outcome.CompileError } => "won't compile",
+        _ => "not done yet",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("practiceStorage.load", StorageKey);
+            var saved = json is null ? null : JsonSerializer.Deserialize<Dictionary<int, string>>(json);
+            if (saved is not null)
+            {
+                foreach (var (num, code) in saved)
+                {
+                    if (cards.TryGetValue(num, out var card)) card.Code = code;
+                }
+            }
+        }
+        catch (Exception) { /* storage unavailable: start fresh */ }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(50); // let the page paint before the compiler start-up blocks the thread
+        runner.WarmUp();
+        ready = true;
+        StateHasChanged();
+    }
+
+    void OnEdit(Problem p, ChangeEventArgs e)
+    {
+        var card = cards[p.Number];
+        card.Code = e.Value?.ToString() ?? "";
+        card.Stale = true;
+        Save();
+    }
+
+    async Task RunOne(Problem p)
+    {
+        busy = true;
+        await Task.Delay(1); // show the disabled buttons before compiling
+        var result = runner.Run(new[] { (p, cards[p.Number].Code) });
+        Apply(result, runner.LastElapsed);
+        busy = false;
+    }
+
+    async Task RunAll()
+    {
+        busy = true;
+        scoreDetail = "Compiling…";
+        StateHasChanged();
+        await Task.Delay(1);
+        var result = runner.Run(Problems.All.Select(p => (p, cards[p.Number].Code)).ToList());
+        Apply(result, null);
+        var needWork = Problems.All.Where(p => StatusOf(p) is "fail" or "error").Select(p => p.Number).ToList();
+        var notDone = Problems.All.Where(p => StatusOf(p) == "idle").Select(p => p.Number).ToList();
+        var parts = new List<string>();
+        if (needWork.Count > 0) parts.Add("Needs work: " + Ranges(needWork));
+        if (notDone.Count > 0) parts.Add("Not done yet: " + Ranges(notDone));
+        parts.Add($"compiled and ran in {Seconds(runner.LastElapsed)}");
+        scoreDetail = string.Join("  ·  ", parts);
+        busy = false;
+    }
+
+    void Apply(Dictionary<int, ProblemResult> results, TimeSpan? elapsed)
+    {
+        foreach (var (num, result) in results)
+        {
+            var card = cards[num];
+            card.Result = result;
+            card.Stale = false;
+            card.Elapsed = elapsed is null ? null : Seconds(elapsed.Value);
+        }
+    }
+
+    static string Seconds(TimeSpan t) => t.TotalSeconds.ToString("0.00") + " s";
+
+    static string Ranges(List<int> nums)
+    {
+        var parts = new List<string>();
+        for (int i = 0; i < nums.Count; i++)
+        {
+            int j = i;
+            while (j + 1 < nums.Count && nums[j + 1] == nums[j] + 1) j++;
+            parts.Add(j - i >= 2 ? $"{nums[i]}–{nums[j]}" : string.Join(", ", nums.Skip(i).Take(j - i + 1)));
+            i = j;
+        }
+        return string.Join(", ", parts);
+    }
+
+    async Task ClearAll()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your code on this page and start over?")) return;
+        foreach (var card in cards.Values)
+        {
+            card.Code = StartingCode;
+            card.Result = null;
+            card.Stale = false;
+            card.Elapsed = null;
+        }
+        scoreDetail = "";
+        Save();
+    }
+
+    void Save()
+    {
+        var json = JsonSerializer.Serialize(cards.ToDictionary(c => c.Key, c => c.Value.Code));
+        _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
+    }
+
+    async Task ScrollTo(Problem p) => await JS.InvokeVoidAsync("practiceScrollTo", "p" + p.Number);
+}
