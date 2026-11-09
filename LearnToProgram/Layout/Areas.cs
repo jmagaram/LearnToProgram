@@ -35,6 +35,13 @@ public static class Areas
                 new(1, "linked-list-1", "Read the code", "קריאת קוד"),
                 new(2, "linked-list-2", "Write the code", "כתיבת קוד"),
             }),
+        new("Projects", "פרויקטים",
+            "Bigger programs you can watch run, like the Game of Life.",
+            new Exercise[]
+            {
+                new(1, "life-1", "Life in a row", "חיים בשורה"),
+                new(2, "life-2", "Game of Life", "משחק החיים"),
+            }),
     };
 
     /// <summary>The area that owns a relative path like "conditions-2", or null (for the home page).</summary>

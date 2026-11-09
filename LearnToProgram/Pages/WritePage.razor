@@ -1,12 +1,15 @@
-@* A "Write the code" page (Linked List 2, Arrays 2): one card per method, each with Run, compiler errors
-   and a table of tests. What differs between pages comes from a WriteCourse and the parameters below. *@
+@* A "Write the code" page (Linked List 2, Arrays 2, Game of Life): one card per method, each with Run,
+   compiler errors and a table of tests. What differs between pages comes from a WriteCourse and the
+   parameters below. A page can add a Side panel (such as the Game of Life board) that runs the student's
+   code through the public methods at the end of @code. *@
 @using System.Text.Json
 @using System.Text.RegularExpressions
 @using LearnToProgram.Practice
 @using LearnToProgram.Practice.Writing
+@using System.Reflection
 @inject IJSRuntime JS
 
-<div class="ccp">
+<div class="ccp @(Side is null ? "" : "with-side")">
 <header class="top">
     <div>
         <h1>@Heading</h1>
@@ -37,6 +40,11 @@
     </div>
 </header>
 
+<div class="write-body">
+@if (Side is not null)
+{
+    <aside class="side">@Side</aside>
+}
 <div class="problems">
     @foreach (var p in Problems)
     {
@@ -120,6 +128,7 @@
         </article>
     }
 </div>
+</div>
 
 <footer>
     Your code is compiled by Roslyn, the same C# compiler that .NET uses, running in your browser with
@@ -146,6 +155,9 @@
     // This page's address, like "linked-list-2", and the start of each problem's anchor, like "ll".
     [Parameter, EditorRequired] public string Href { get; set; } = "";
     [Parameter] public string AnchorPrefix { get; set; } = "p";
+
+    // A panel beside the problems, such as the Game of Life board. Below the title on small screens.
+    [Parameter] public RenderFragment? Side { get; set; }
 
     const int MinRows = 8;
 
@@ -224,6 +236,7 @@
 
     void OnEdit(WriteProblem p, ChangeEventArgs e)
     {
+        edits++;
         var card = cards[p.Id];
         card.Code = e.Value?.ToString() ?? "";
         card.Stale = true;
@@ -235,6 +248,7 @@
         busy = true;
         await Task.Delay(1); // show the disabled buttons before compiling
         // Compile every answer, so this one can call the student's other methods.
+        compiledAt = edits;
         Apply(runner.Run(AllAnswers(), new[] { p.Id }), runner.LastElapsed);
         busy = false;
     }
@@ -245,6 +259,7 @@
         scoreDetail = "Compiling…";
         StateHasChanged();
         await Task.Delay(1);
+        compiledAt = edits;
         Apply(runner.Run(AllAnswers()), null);
         var needWork = Problems.Where(p => StatusOf(p) is "fail" or "error").Select(p => p.Id).ToList();
         var notDone = Problems.Where(p => StatusOf(p) == "idle").Select(p => p.Id).ToList();
@@ -274,6 +289,7 @@
     async Task ClearAll()
     {
         if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your code on this page and start over?")) return;
+        edits++;
         foreach (var p in Problems)
         {
             var card = cards[p.Id];
@@ -293,4 +309,41 @@
     }
 
     async Task ScrollTo(WriteProblem p) => await JS.InvokeVoidAsync("practiceScrollTo", Anchor(p));
+
+    // ---------- For a Side panel ----------
+
+    int edits;              // goes up every time any code changes
+    int compiledAt = -1;    // the value of edits when the code was last compiled
+
+    // The compiler has started up, so CompileAll can be called.
+    public bool Ready => ready;
+
+    public bool Busy => busy;
+
+    // The student's code from the last Run or Run all, or null if nothing compiled.
+    public Assembly? Compiled => runner.LastAssembly;
+
+    // True when the code changed since it was last compiled.
+    public bool NeedsCompile => runner.LastAssembly is null || compiledAt != edits;
+
+    // The same as pressing Run all: compiles every problem and updates every card.
+    public async Task<Assembly?> CompileAll()
+    {
+        await RunAll();
+        StateHasChanged();
+        return runner.LastAssembly;
+    }
+
+    public string CodeOf(string id) => cards[id].Code;
+
+    // Replaces the code of one problem, as if the student had typed it.
+    public void SetCode(string id, string code)
+    {
+        edits++;
+        var card = cards[id];
+        card.Code = code;
+        card.Stale = true;
+        Save();
+        StateHasChanged();
+    }
 }

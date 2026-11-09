@@ -18,6 +18,10 @@ public sealed class HarnessRunner(WriteCourse course)
 
     public TimeSpan LastElapsed { get; private set; }
 
+    // The student's code from the last Run, ready to call (with stubs for problems that weren't done or
+    // didn't compile), or null if nothing compiled. Pages like Game of Life call the methods in it.
+    public Assembly? LastAssembly { get; private set; }
+
     // Calls to these are added to every loop and method in student code, so a loop that
     // never ends stops with a message instead of freezing the browser.
     const string GuardSource = """
@@ -106,6 +110,7 @@ public sealed class HarnessRunner(WriteCourse course)
             }
         }
 
+        LastAssembly = assembly;
         LastElapsed = watch.Elapsed;
         return report is null ? results : results.Where(r => report.Contains(r.Key)).ToDictionary();
     }

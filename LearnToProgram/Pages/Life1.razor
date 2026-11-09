@@ -1,0 +1,21 @@
+@page "/life-1"
+@using LearnToProgram.Practice.Life
+
+<PageTitle>Life in a row</PageTitle>
+
+<WritePage @ref="writer" Course="LifeProblems.RowCourse" Heading="Life in a row"
+           StorageKey="learntoprogram-life-1-v1" Href="life-1" AnchorPrefix="r">
+    <Intro>
+        A row of cells. Each cell is alive (<code>true</code>) or dead (<code>false</code>). Every generation,
+        each cell looks at its two neighbours to decide if it will be alive next time. Write the three methods,
+        then press <b>Play</b> to watch your rule draw a picture, one generation per row.
+        In the tests, cells are shown like <code>[.#.]</code>: <code>#</code> is alive and <code>.</code> is dead.
+    </Intro>
+    <Side>
+        <RowBoard Writer="() => writer" />
+    </Side>
+</WritePage>
+
+@code {
+    WritePage? writer;
+}

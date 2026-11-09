@@ -1,0 +1,240 @@
+@* The board for Life 1: one row of cells. Each new generation is drawn under the one before, using the
+   student's NewCell(bool[] cells, int i) from the WritePage beside it. *@
+@using LearnToProgram.Practice.Life
+@implements IDisposable
+@inject IJSRuntime JS
+
+<section class="life" aria-label="The board">
+    <div class="life-bar">
+        <button type="button" class="primary" @onclick="PlayPause">@(playing ? "❚❚ Pause" : "▶ Play")</button>
+        <button type="button" disabled="@playing" @onclick="StepClicked">Step</button>
+        <button type="button" @onclick="StartOver">Start over</button>
+        <label class="life-speed">Speed
+            <input type="range" min="0" max="@(Delays.Length - 1)" @bind="speed" @bind:event="oninput" />
+        </label>
+    </div>
+    <div class="life-bar">
+        <label>First row:
+            <select @onchange="PickStart">
+                <option value="one">one cell in the middle</option>
+                <option value="two">two cells</option>
+                <option value="random">random</option>
+                <option value="empty">empty (draw your own)</option>
+            </select>
+        </label>
+    </div>
+    <canvas @ref="canvas" class="life-canvas" aria-label="The cells, one generation per row"></canvas>
+    <p class="life-status" aria-live="polite">
+        Generation @(generations.Count - 1)@(message is null ? "" : " · ")<span class="@(isError ? "life-error" : "")">@message</span>
+    </p>
+    <p class="life-help">
+        Click the top row to change how it starts. Each row below is the next generation, made by your <code>NewCell</code>.
+    </p>
+    <details class="life-rules">
+        <summary>Try another rule</summary>
+        <p>These put new code into <code>NewCell</code> (problem 3). Press Play to see what it draws, then change it and try again.</p>
+        @foreach (var (name, code) in LifeProblems.RowRules)
+        {
+            <button type="button" @onclick="() => UseRule(code)">@name</button>
+        }
+    </details>
+</section>
+
+@code {
+    // The WritePage beside this board, which compiles the student's code.
+    [Parameter, EditorRequired] public Func<WritePage?> Writer { get; set; } = default!;
+
+    const int Cols = 81;
+    const int Rows = 41;
+    static readonly int[] Delays = { 500, 250, 120, 50, 10 };
+
+    ElementReference canvas;
+    DotNetObjectReference<RowBoard>? self;
+    readonly List<bool[]> generations = new() { OneCell() };
+    LifeCode? code;
+    bool playing;
+    int speed = 2;
+    string? message;
+    bool isError;
+
+    static bool[] OneCell()
+    {
+        var row = new bool[Cols];
+        row[Cols / 2] = true;
+        return row;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("lifeBoard.attach", canvas, Rows, Cols, self);
+        await Draw();
+    }
+
+    async Task Draw()
+    {
+        var bytes = new byte[Rows * Cols];
+        for (int r = 0; r < Rows; r++)
+            for (int c = 0; c < Cols; c++)
+                bytes[r * Cols + c] = r < generations.Count ? (byte)(generations[r][c] ? 1 : 0) : (byte)2;
+        await JS.InvokeVoidAsync("lifeBoard.draw", canvas, Rows, Cols, bytes);
+    }
+
+    // Compiles the student's code if it changed. False (with a message) if there is nothing to run.
+    async Task<bool> Prepare()
+    {
+        var writer = Writer();
+        if (writer is null || !writer.Ready)
+        {
+            Say("The C# compiler is still getting ready. Try again in a moment.", true);
+            return false;
+        }
+        if (writer.NeedsCompile)
+        {
+            Say("Compiling your code…", false);
+            StateHasChanged();
+            await Task.Delay(1);
+            await writer.CompileAll();
+        }
+        if (code?.Assembly != writer.Compiled) code = LifeCode.From(writer.Compiled);
+        if (code is null)
+        {
+            Say("Write your code first. Your methods need to compile before the board can use them.", true);
+            return false;
+        }
+        Say(null, false);
+        return true;
+    }
+
+    void Say(string? text, bool error)
+    {
+        message = text;
+        isError = error;
+    }
+
+    // Makes one more generation. False if it couldn't.
+    bool Step()
+    {
+        if (generations.Count >= Rows)
+        {
+            Say("The board is full. Press Start over, or pick a different first row.", false);
+            return false;
+        }
+        var last = generations[^1];
+        var cells = (bool[])last.Clone();
+        var next = new bool[Cols];
+        for (int i = 0; i < Cols; i++)
+        {
+            try
+            {
+                next[i] = code!.NewCell(cells, i);
+            }
+            catch (Exception e)
+            {
+                Say($"NewCell(cells, {i}) didn't work: {LifeCode.Explain(e)}", true);
+                return false;
+            }
+        }
+        generations.Add(next);
+        return true;
+    }
+
+    async Task StepClicked()
+    {
+        if (!await Prepare()) return;
+        Step();
+        await Draw();
+    }
+
+    async Task PlayPause()
+    {
+        if (playing)
+        {
+            playing = false;
+            return;
+        }
+        if (!await Prepare()) return;
+        if (generations.Count >= Rows) generations.RemoveRange(1, generations.Count - 1);
+        playing = true;
+        while (playing)
+        {
+            if (!Step())
+            {
+                playing = false;
+            }
+            await Draw();
+            StateHasChanged();
+            if (playing) await Task.Delay(Delays[speed]);
+        }
+        StateHasChanged();
+    }
+
+    async Task StartOver()
+    {
+        playing = false;
+        generations.RemoveRange(1, generations.Count - 1);
+        Say(null, false);
+        await Draw();
+    }
+
+    async Task PickStart(ChangeEventArgs e)
+    {
+        var row = new bool[Cols];
+        switch (e.Value?.ToString())
+        {
+            case "one": row[Cols / 2] = true; break;
+            case "two": row[Cols / 2 - 10] = true; row[Cols / 2 + 10] = true; break;
+            case "random":
+                for (int i = 0; i < Cols; i++) row[i] = Random.Shared.Next(3) == 0;
+                break;
+        }
+        playing = false;
+        generations.Clear();
+        generations.Add(row);
+        Say(null, false);
+        await Draw();
+    }
+
+    async Task UseRule(string ruleCode)
+    {
+        var writer = Writer();
+        if (writer is null) return;
+        var current = writer.CodeOf("3");
+        if (!string.IsNullOrWhiteSpace(current) && current.Trim() != LifeProblems.Row[2].StartingCode.Trim() &&
+            !LifeProblems.RowRules.Any(r => r.Code.Trim() == current.Trim()) &&
+            !await JS.InvokeAsync<bool>("confirm", "This replaces your code in NewCell. Copy it somewhere first if you want to keep it. Go ahead?"))
+        {
+            return;
+        }
+        writer.SetCode("3", ruleCode);
+        await StartOver();
+        Say("New rule in NewCell. Press Play.", false);
+    }
+
+    // Called from life.js when a cell is clicked. Only the first row can be changed.
+    [JSInvokable]
+    public async Task<bool?> Toggle(int row, int col)
+    {
+        if (row != 0) return null;
+        await Set(row, col, !generations[0][col]);
+        return generations[0][col];
+    }
+
+    [JSInvokable]
+    public async Task Set(int row, int col, bool value)
+    {
+        if (row != 0) return;
+        playing = false;
+        generations.RemoveRange(1, generations.Count - 1);
+        generations[0][col] = value;
+        await Draw();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        playing = false;
+        self?.Dispose();
+    }
+}
