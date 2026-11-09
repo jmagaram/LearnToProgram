@@ -1,0 +1,303 @@
+@* The board for Life 2: Conway's Game of Life on a grid, using the student's
+   NewCell(bool[,] grid, int row, int col) from the WritePage beside it. *@
+@using LearnToProgram.Practice.Life
+@implements IDisposable
+@inject IJSRuntime JS
+
+<section class="life" aria-label="The board">
+    <div class="life-bar">
+        <button type="button" class="primary" @onclick="PlayPause">@(playing ? "❚❚ Pause" : "▶ Play")</button>
+        <button type="button" disabled="@playing" @onclick="StepClicked">Step</button>
+        <button type="button" @onclick="Restart">Back to start</button>
+        <label class="life-speed">Speed
+            <input type="range" min="0" max="@(Delays.Length - 1)" @bind="speed" @bind:event="oninput" />
+        </label>
+    </div>
+    <div class="life-bar">
+        <label>Pattern:
+            <select @onchange="PickPattern">
+                @foreach (var p in Patterns)
+                {
+                    <option value="@p.Name" selected="@(p.Name == patternName)">@p.Name</option>
+                }
+            </select>
+        </label>
+    </div>
+    <canvas @ref="canvas" class="life-canvas" aria-label="The grid of cells"></canvas>
+    <p class="life-status" aria-live="polite">
+        Generation @generation · @Population alive@(message is null ? "" : " · ")<span class="@(isError ? "life-error" : "")">@message</span>
+    </p>
+    <p class="life-help">
+        Click or drag on the grid to draw cells. Cells outside the grid count as dead.
+        <b>Back to start</b> returns to the cells you started with.
+    </p>
+    <details class="life-rules">
+        <summary>Try another rule</summary>
+        <p>These put new code into <code>NewCell</code> (problem 3). Press Play to see what happens, then change it and try again.</p>
+        @foreach (var (name, code) in LifeProblems.GridRules)
+        {
+            <button type="button" @onclick="() => UseRule(code)">@name</button>
+        }
+    </details>
+</section>
+
+@code {
+    // The WritePage beside this board, which compiles the student's code.
+    [Parameter, EditorRequired] public Func<WritePage?> Writer { get; set; } = default!;
+
+    const int Rows = 34;
+    const int Cols = 56;
+    static readonly int[] Delays = { 500, 250, 120, 50, 10 };
+
+    sealed record Pattern(string Name, string[] Lines, int Top = -1, int Left = -1);
+
+    // # is alive. Top/Left place the pattern; -1 centers it.
+    static readonly Pattern[] Patterns =
+    {
+        new("Glider", new[] { ".#.", "..#", "###" }, 2, 2),
+        new("Blinker", new[] { "###" }),
+        new("Toad", new[] { ".###", "###." }),
+        new("Spaceship", new[] { ".#..#", "#....", "#...#", "####." }, -1, 2),
+        new("R-pentomino", new[] { ".##", "##.", ".#." }),
+        new("Pulsar", new[]
+        {
+            "..###...###..",
+            ".............",
+            "#....#.#....#",
+            "#....#.#....#",
+            "#....#.#....#",
+            "..###...###..",
+            ".............",
+            "..###...###..",
+            "#....#.#....#",
+            "#....#.#....#",
+            "#....#.#....#",
+            ".............",
+            "..###...###..",
+        }),
+        new("Glider gun", new[]
+        {
+            "........................#...........",
+            "......................#.#...........",
+            "............##......##............##",
+            "...........#...#....##............##",
+            "##........#.....#...##..............",
+            "##........#...#.##....#.#...........",
+            "..........#.....#.......#...........",
+            "...........#...#....................",
+            "............##......................",
+        }, 1, 1),
+        new("Random", Array.Empty<string>()),
+        new("Empty (draw your own)", Array.Empty<string>()),
+    };
+
+    ElementReference canvas;
+    DotNetObjectReference<GridBoard>? self;
+    bool[,] grid = new bool[Rows, Cols];
+    bool[,] start = new bool[Rows, Cols];
+    int generation;
+    string patternName = "Glider";
+    LifeCode? code;
+    bool playing;
+    int speed = 2;
+    string? message;
+    bool isError;
+
+    int Population
+    {
+        get
+        {
+            int n = 0;
+            foreach (var alive in grid) if (alive) n++;
+            return n;
+        }
+    }
+
+    protected override void OnInitialized() => Load(Patterns[0]);
+
+    void Load(Pattern p)
+    {
+        patternName = p.Name;
+        grid = new bool[Rows, Cols];
+        if (p.Name == "Random")
+        {
+            for (int r = 0; r < Rows; r++)
+                for (int c = 0; c < Cols; c++)
+                    grid[r, c] = Random.Shared.Next(4) == 0;
+        }
+        else if (p.Lines.Length > 0)
+        {
+            int top = p.Top >= 0 ? p.Top : (Rows - p.Lines.Length) / 2;
+            int left = p.Left >= 0 ? p.Left : (Cols - p.Lines[0].Length) / 2;
+            for (int r = 0; r < p.Lines.Length; r++)
+                for (int c = 0; c < p.Lines[r].Length; c++)
+                    grid[top + r, left + c] = p.Lines[r][c] == '#';
+        }
+        start = (bool[,])grid.Clone();
+        generation = 0;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("lifeBoard.attach", canvas, Rows, Cols, self);
+        await Draw();
+    }
+
+    async Task Draw()
+    {
+        var bytes = new byte[Rows * Cols];
+        for (int r = 0; r < Rows; r++)
+            for (int c = 0; c < Cols; c++)
+                bytes[r * Cols + c] = grid[r, c] ? (byte)1 : (byte)0;
+        await JS.InvokeVoidAsync("lifeBoard.draw", canvas, Rows, Cols, bytes);
+    }
+
+    // Compiles the student's code if it changed. False (with a message) if there is nothing to run.
+    async Task<bool> Prepare()
+    {
+        var writer = Writer();
+        if (writer is null || !writer.Ready)
+        {
+            Say("The C# compiler is still getting ready. Try again in a moment.", true);
+            return false;
+        }
+        if (writer.NeedsCompile)
+        {
+            Say("Compiling your code…", false);
+            StateHasChanged();
+            await Task.Delay(1);
+            await writer.CompileAll();
+        }
+        if (code?.Assembly != writer.Compiled) code = LifeCode.From(writer.Compiled);
+        if (code is null)
+        {
+            Say("Write your code first. Your methods need to compile before the board can use them.", true);
+            return false;
+        }
+        Say(null, false);
+        return true;
+    }
+
+    void Say(string? text, bool error)
+    {
+        message = text;
+        isError = error;
+    }
+
+    // Makes the next generation. Every cell looks at the same copy of the old grid. False if it failed.
+    bool Step()
+    {
+        var old = (bool[,])grid.Clone();
+        var next = new bool[Rows, Cols];
+        for (int r = 0; r < Rows; r++)
+        {
+            for (int c = 0; c < Cols; c++)
+            {
+                try
+                {
+                    next[r, c] = code!.NewCell(old, r, c);
+                }
+                catch (Exception e)
+                {
+                    Say($"NewCell(grid, {r}, {c}) didn't work: {LifeCode.Explain(e)}", true);
+                    return false;
+                }
+            }
+        }
+        grid = next;
+        generation++;
+        return true;
+    }
+
+    async Task StepClicked()
+    {
+        if (!await Prepare()) return;
+        Step();
+        await Draw();
+    }
+
+    async Task PlayPause()
+    {
+        if (playing)
+        {
+            playing = false;
+            return;
+        }
+        if (!await Prepare()) return;
+        playing = true;
+        while (playing)
+        {
+            if (!Step())
+            {
+                playing = false;
+            }
+            await Draw();
+            StateHasChanged();
+            if (playing) await Task.Delay(Delays[speed]);
+        }
+        StateHasChanged();
+    }
+
+    async Task Restart()
+    {
+        playing = false;
+        grid = (bool[,])start.Clone();
+        generation = 0;
+        Say(null, false);
+        await Draw();
+    }
+
+    async Task PickPattern(ChangeEventArgs e)
+    {
+        playing = false;
+        Load(Patterns.FirstOrDefault(p => p.Name == e.Value?.ToString()) ?? Patterns[0]);
+        Say(null, false);
+        await Draw();
+    }
+
+    async Task UseRule(string ruleCode)
+    {
+        var writer = Writer();
+        if (writer is null) return;
+        var current = writer.CodeOf("3");
+        if (!string.IsNullOrWhiteSpace(current) && current.Trim() != LifeProblems.Grid[2].StartingCode.Trim() &&
+            !LifeProblems.GridRules.Any(r => r.Code.Trim() == current.Trim()) &&
+            !await JS.InvokeAsync<bool>("confirm", "This replaces your code in NewCell. Copy it somewhere first if you want to keep it. Go ahead?"))
+        {
+            return;
+        }
+        writer.SetCode("3", ruleCode);
+        await Restart();
+        Say("New rule in NewCell. Press Play.", false);
+    }
+
+    // Called from life.js when a cell is clicked: flips it and answers its new value.
+    [JSInvokable]
+    public async Task<bool?> Toggle(int row, int col)
+    {
+        await Set(row, col, !grid[row, col]);
+        return grid[row, col];
+    }
+
+    // Called from life.js while dragging. A drawing becomes the new start for Back to start.
+    [JSInvokable]
+    public async Task Set(int row, int col, bool value)
+    {
+        grid[row, col] = value;
+        if (!playing)
+        {
+            start = (bool[,])grid.Clone();
+            generation = 0;
+        }
+        await Draw();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        playing = false;
+        self?.Dispose();
+    }
+}

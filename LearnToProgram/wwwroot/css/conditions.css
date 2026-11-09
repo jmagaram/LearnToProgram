@@ -1,4 +1,4 @@
-/* Styles for the practice pages (Conditions 1 and 2, Linked List 1 and 2). Everything is inside .ccp
+/* Styles for the practice pages (Conditions, Arrays, Linked List, Projects). Everything is inside .ccp
    so it doesn't change the rest of the app. */
 .ccp {
   --surface: #ffffff;
@@ -260,3 +260,36 @@
 @media (max-width: 900px) {
   .ccp.focus.wide-code .focus-body { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Write pages with a Side panel (Game of Life): the problems on the left and the board on the right,
+   which stays in view while you scroll. On narrow screens the board comes first. */
+.ccp.with-side { max-width: 1400px; }
+.ccp.with-side .write-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 0 24px; align-items: start; }
+.ccp.with-side .write-body .problems { grid-column: 1; grid-row: 1; }
+.ccp.with-side .write-body .side { grid-column: 2; grid-row: 1; position: sticky; top: 64px; padding-top: 8px; }
+@media (max-width: 1000px) {
+  .ccp.with-side .write-body { grid-template-columns: minmax(0, 1fr); }
+  .ccp.with-side .write-body .side { grid-column: 1; grid-row: 1; position: static; }
+  .ccp.with-side .write-body .problems { grid-row: 2; }
+}
+
+/* The Game of Life board */
+.ccp .life {
+  --life-alive: #3b5bdb;
+  --life-dead: #ffffff;
+  --life-later: #f3f4f7;
+  --life-line: #e3e6eb;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+}
+.ccp .life-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.ccp .life-bar select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.ccp .life-speed { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.9rem; }
+.ccp .life-speed input { width: 110px; }
+.ccp .life-canvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 4px; touch-action: none; cursor: pointer; }
+.ccp .life-status { margin: 8px 0 4px; font-weight: 600; }
+.ccp .life-error { color: var(--fail); }
+.ccp .life-help { margin: 0 0 8px; color: var(--muted); font-size: 0.9rem; }
+.ccp .life-help code, .ccp .life-rules code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.ccp .life-rules summary { cursor: pointer; font-weight: 600; }
+.ccp .life-rules p { margin: 6px 0; color: var(--muted); font-size: 0.9rem; }
+.ccp .life-rules button { margin: 0 6px 6px 0; }

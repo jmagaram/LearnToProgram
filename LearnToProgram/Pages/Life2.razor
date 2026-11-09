@@ -1,0 +1,21 @@
+@page "/life-2"
+@using LearnToProgram.Practice.Life
+
+<PageTitle>Game of Life</PageTitle>
+
+<WritePage @ref="writer" Course="LifeProblems.GridCourse" Heading="Game of Life"
+           StorageKey="learntoprogram-life-2-v1" Href="life-2" AnchorPrefix="g">
+    <Intro>
+        Now the cells are in a grid, so each cell has 8 neighbours. These are the rules of the famous
+        Game of Life, invented by John Conway in 1970. Write <code>CountNeighbors</code> and <code>NewCell</code>,
+        then press <b>Play</b>. In the tests, a grid is shown row by row like <code>[#../.#./...]</code>:
+        <code>#</code> is alive and <code>.</code> is dead.
+    </Intro>
+    <Side>
+        <GridBoard Writer="() => writer" />
+    </Side>
+</WritePage>
+
+@code {
+    WritePage? writer;
+}
