@@ -1,8 +1,8 @@
 namespace LearnToProgram.Practice.LinkedList;
 
 // C# source that is compiled in the browser together with the students' methods.
-// It is plain text here, not part of this app: the IntNode class students use,
-// a guard that stops endless loops, and the tests from the IntNode worksheet.
+// It is plain text here, not part of this app: the IntNode class students use
+// and the tests from the IntNode worksheet. HarnessRunner adds the guard that stops endless loops.
 static class LinkedListSource
 {
     public const string Header = """
@@ -32,22 +32,6 @@ static class LinkedListSource
             public void SetNext(IntNode next) { this.next = next; }
             public bool HasNext() { return this.next != null; }
             public override string ToString() { return this.value.ToString(); }
-        }
-
-        // Calls to these are added to every loop and method in student code, so a loop that
-        // never ends stops with a message instead of freezing the browser.
-        public sealed class __LoopNeverEnds : Exception { }
-        public sealed class __TooManyCalls : Exception { }
-
-        public static class __Guard
-        {
-            public const int MaxLoops = 1000000;
-            public const int MaxCalls = 500;
-            static int loops;
-            static int calls;
-            public static void Reset() { loops = 0; calls = 0; }
-            public static void Loop() { if (++loops > MaxLoops) throw new __LoopNeverEnds(); }
-            public static void Call() { if (++calls > MaxCalls) throw new __TooManyCalls(); }
         }
 
         """;

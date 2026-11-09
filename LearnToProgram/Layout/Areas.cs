@@ -21,6 +21,13 @@ public static class Areas
                 new(1, "conditions-1", "Read the code", "קריאת קוד"),
                 new(2, "conditions-2", "Write the code", "כתיבת קוד"),
             }),
+        new("Arrays", "מערכים",
+            "Indexes, Length, loops over arrays, and 2D grids.",
+            new Exercise[]
+            {
+                new(1, "arrays-1", "Read the code", "קריאת קוד"),
+                new(2, "arrays-2", "Write the code", "כתיבת קוד"),
+            }),
         new("Linked List", "רשימה מקושרת",
             "Walk, build and change chains of IntNode.",
             new Exercise[]
