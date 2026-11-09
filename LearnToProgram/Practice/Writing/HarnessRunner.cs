@@ -5,52 +5,65 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LearnToProgram.Practice.LinkedList;
+namespace LearnToProgram.Practice.Writing;
 
-public sealed record LinkedListRow(string Call, string Got, string Expected, bool Ok);
-
-public sealed record LinkedListResult(
-    Outcome Outcome, IReadOnlyList<CompileMessage> Errors, IReadOnlyList<LinkedListRow> Rows)
+// Compiles the students' method bodies together with a course's header and test harness
+// (see WriteCourse), using the same in-browser compiler setup as CSharpRunner.
+public sealed class HarnessRunner(WriteCourse course)
 {
-    public int Correct => Rows.Count(r => r.Ok);
-
-    public static readonly LinkedListResult NotDoneYet =
-        new(Outcome.NotDone, Array.Empty<CompileMessage>(), Array.Empty<LinkedListRow>());
-}
-
-// Compiles the students' method bodies together with IntNode and the worksheet tests
-// (LinkedListSource), using the same in-browser compiler setup as CSharpRunner.
-public sealed class LinkedListRunner
-{
-    const string LinePrefix = "LL";
+    const string LinePrefix = "P_";
     const string Stub = "throw new NotImplementedException();";
 
     int compileCount;
 
     public TimeSpan LastElapsed { get; private set; }
 
-    public static bool IsNotDone(LinkedListProblem p, string body) =>
+    // Calls to these are added to every loop and method in student code, so a loop that
+    // never ends stops with a message instead of freezing the browser.
+    const string GuardSource = """
+
+        public sealed class __LoopNeverEnds : Exception { }
+        public sealed class __TooManyCalls : Exception { }
+
+        public static class __Guard
+        {
+            public const int MaxLoops = 1000000;
+            public const int MaxCalls = 500;
+            static int loops;
+            static int calls;
+            public static void Reset() { loops = 0; calls = 0; }
+            public static void Loop() { if (++loops > MaxLoops) throw new __LoopNeverEnds(); }
+            public static void Call() { if (++calls > MaxCalls) throw new __TooManyCalls(); }
+        }
+
+        """;
+
+    public WriteCourse Course => course;
+
+    public static bool IsNotDone(WriteProblem p, string body) =>
         string.IsNullOrWhiteSpace(body) || (!p.IsExample && Normalize(body) == Normalize(p.StartingCode));
 
     static string Normalize(string code) => code.Replace("\r\n", "\n").Trim();
 
     public void WarmUp()
     {
-        Run(new[] { (LinkedListProblems.All[0], "return 0;") });
-        Console.WriteLine("C# compiler ready for linked lists.");
+        // Something that isn't the starting code, so it is really compiled and run.
+        var first = course.Problems[0];
+        Run(new[] { (first, "// warm up\n" + first.StartingCode) });
+        Console.WriteLine($"C# compiler ready for {course.Name}.");
     }
 
     // Compiles all the given bodies, so a method can call the student's other methods,
     // and returns results for the problems in `report` (all of them when it is null).
-    public Dictionary<string, LinkedListResult> Run(
-        IReadOnlyList<(LinkedListProblem Problem, string Body)> items, IReadOnlyCollection<string>? report = null)
+    public Dictionary<string, WriteResult> Run(
+        IReadOnlyList<(WriteProblem Problem, string Body)> items, IReadOnlyCollection<string>? report = null)
     {
         var watch = Stopwatch.StartNew();
-        var results = new Dictionary<string, LinkedListResult>();
+        var results = new Dictionary<string, WriteResult>();
         var pending = new Dictionary<string, string>();
         foreach (var (problem, body) in items)
         {
-            if (IsNotDone(problem, body)) results[problem.Id] = LinkedListResult.NotDoneYet;
+            if (IsNotDone(problem, body)) results[problem.Id] = WriteResult.NotDoneYet;
             else pending[problem.Id] = body;
         }
 
@@ -74,7 +87,7 @@ public sealed class LinkedListRunner
                     .DistinctBy(m => (m.Line, m.Column, m.Id))
                     .Take(5)
                     .ToList();
-                results[group.Key] = new LinkedListResult(Outcome.CompileError, messages, Array.Empty<LinkedListRow>());
+                results[group.Key] = new WriteResult(Outcome.CompileError, messages, Array.Empty<WriteRow>());
                 pending.Remove(group.Key);
             }
         }
@@ -86,9 +99,9 @@ public sealed class LinkedListRunner
             foreach (var id in pending.Keys)
             {
                 results[id] = run is null
-                    ? new LinkedListResult(Outcome.CompileError,
+                    ? new WriteResult(Outcome.CompileError,
                         new[] { new CompileMessage(null, null, "", "This code could not be compiled.", null) },
-                        Array.Empty<LinkedListRow>())
+                        Array.Empty<WriteRow>())
                     : RunTests(run, id);
             }
         }
@@ -98,7 +111,7 @@ public sealed class LinkedListRunner
     }
 
     CSharpCompilation Compile(SyntaxTree tree) => CSharpCompilation.Create(
-        "LinkedListCode" + (++compileCount), new[] { tree }, CSharpRunner.References.Value, CSharpRunner.CompileOptions);
+        course.Name.Replace(" ", "") + "Code" + (++compileCount), new[] { tree }, CSharpRunner.References.Value, CSharpRunner.CompileOptions);
 
     static Assembly? Emit(CSharpCompilation compilation)
     {
@@ -106,23 +119,24 @@ public sealed class LinkedListRunner
         return compilation.Emit(stream).Success ? Assembly.Load(stream.ToArray()) : null;
     }
 
-    static LinkedListResult RunTests(MethodInfo run, string id)
+    static WriteResult RunTests(MethodInfo run, string id)
     {
         var rows = ((string[][])run.Invoke(null, new object[] { id })!)
-            .Select(r => new LinkedListRow(r[0], r[1], r[2], r[3] == "1"))
+            .Select(r => new WriteRow(r[0], r[1], r[2], r[3] == "1"))
             .ToList();
         var outcome = rows.All(r => r.Ok) ? Outcome.Pass : Outcome.Fail;
-        return new LinkedListResult(outcome, Array.Empty<CompileMessage>(), rows);
+        return new WriteResult(outcome, Array.Empty<CompileMessage>(), rows);
     }
 
     // Problems that aren't being run get a stub body, so the tests always compile.
     // Each student body sits under a "#line 1" directive named after its problem, so
     // compiler errors report the problem and the line inside the student's code.
-    static string BuildSource(IReadOnlyDictionary<string, string> bodies)
+    string BuildSource(IReadOnlyDictionary<string, string> bodies)
     {
-        var sb = new StringBuilder(LinkedListSource.Header);
+        var sb = new StringBuilder(course.Header);
+        sb.Append(GuardSource);
         sb.Append("public static class Student\n{\n");
-        foreach (var p in LinkedListProblems.All)
+        foreach (var p in course.Problems)
         {
             sb.Append("    ").Append(p.Signature).Append("\n    {\n");
             if (bodies.TryGetValue(p.Id, out var body))
@@ -138,7 +152,7 @@ public sealed class LinkedListRunner
             sb.Append("    }\n");
         }
         sb.Append("}\n");
-        sb.Append(LinkedListSource.Harness);
+        sb.Append(course.Harness);
         return sb.ToString();
     }
 
@@ -151,35 +165,25 @@ public sealed class LinkedListRunner
             : null;
     }
 
-    static CompileMessage ToMessage(Diagnostic d)
+    CompileMessage ToMessage(Diagnostic d)
     {
         var m = CSharpRunner.ToMessage(d);
-        return m with { Hint = HintFor(m.Id, m.Message) ?? (m.Id == "CS0103" ? null : m.Hint) ?? GenericHint(m.Id) };
+        return m with { Hint = course.Hint(m.Id, m.Message) ?? ReturnHint(m.Id) ?? (m.Id == "CS0103" ? null : m.Hint) ?? GenericHint(m.Id) };
     }
+
+    // These come before CSharpRunner's tips, which are written for the Conditions page.
+    static string? ReturnHint(string id) => id switch
+    {
+        "CS0127" => "This method is void, so it doesn't return a value. Write return; on its own, or leave it out.",
+        "CS0126" => "This method must return a value, as in return result;",
+        "CS0161" => "Every way through your method must reach a return.",
+        _ => null,
+    };
 
     static string? GenericHint(string id) => id switch
     {
         "CS0103" => "C# cares about upper and lower case, and only knows names that exist in this method " +
-                    "(like lst) or that you created with a variable.",
-        _ => null,
-    };
-
-    // Tips for linked-list mistakes. CSharpRunner's tips are used for everything else.
-    static string? HintFor(string id, string message) => id switch
-    {
-        "CS0029" or "CS0266" when message.Contains("'int' to 'IntNode'") =>
-            "A node and a number are different things. Use new IntNode(...) to make a node from a number.",
-        "CS0029" or "CS0266" when message.Contains("'IntNode' to 'int'") =>
-            "A node and a number are different things. Use GetValue() to get the number inside a node.",
-        "CS0019" when message.Contains("'IntNode' and 'int'") || message.Contains("'int' and 'IntNode'") =>
-            "One side is a node and the other is a number. Use GetValue() to get the number inside a node.",
-        "CS0122" =>
-            "value and next are private. Use GetValue(), GetNext(), SetValue() and SetNext() instead.",
-        "CS1061" or "CS0117" when message.Contains("IntNode") =>
-            "Check the spelling and capital letters. IntNode has GetValue(), GetNext(), SetValue(), SetNext() and HasNext().",
-        "CS0127" => "This method is void, so it doesn't return a value. Write return; on its own, or leave it out.",
-        "CS0126" => "This method must return a value, as in return result;",
-        "CS0161" => "Every way through your method must reach a return. Check what happens when the list is empty (null).",
+                    "(like its parameters) or that you created with a variable.",
         _ => null,
     };
 

@@ -1,0 +1,24 @@
+@* A short reminder of what you can do with an array, shown on the Arrays pages. *@
+<details class="api" open="@Open">
+    <summary>What you can do with an array</summary>
+    <table>
+        <tbody>
+            <tr><td><code>int[] a = {4, 8, 15};</code></td><td>an array of 3 numbers</td></tr>
+            <tr><td><code>string[] w = {"red", "blue"};</code></td><td>an array of 2 strings</td></tr>
+            <tr><td><code>int[] b = new int[5];</code></td><td>an array of 5 zeros</td></tr>
+            <tr><td><code>a[0]</code></td><td>the first item</td></tr>
+            <tr><td><code>a.Length</code></td><td>how many items (no <code>()</code>)</td></tr>
+            <tr><td><code>a[a.Length - 1]</code></td><td>the last item</td></tr>
+            <tr><td><code>a[2] = 7;</code></td><td>change the third item</td></tr>
+            <tr><td><code>int[,] g = new int[3, 4];</code></td><td>a 2D array (grid) with 3 rows and 4 columns</td></tr>
+            <tr><td><code>g[row, col]</code></td><td>one cell of the grid</td></tr>
+            <tr><td><code>g.GetLength(0)</code></td><td>the number of rows</td></tr>
+            <tr><td><code>g.GetLength(1)</code></td><td>the number of columns</td></tr>
+            <tr><td><code>g.Length</code></td><td>the number of cells in the whole grid</td></tr>
+        </tbody>
+    </table>
+</details>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+}

@@ -1,229 +1,27 @@
 @page "/linked-list-1"
 @page "/linked-list-1/{Number:int}"
-@using System.Text.Json
-@using System.Text.RegularExpressions
 @using LearnToProgram.Practice.LinkedList
-@inject IJSRuntime JS
-@inject NavigationManager Nav
 
-<PageTitle>Linked List 1 · Question @Current.Number</PageTitle>
-
-<div class="ccp trace focus wide-code">
-<header class="focus-head">
-    <div class="focus-title">
-        <h1>Read the code</h1>
-        <span class="score" aria-live="polite">Correct: @CorrectCount of @Total@(CorrectCount == Total ? " — Perfect! Now try part 2." : "")</span>
-        <button type="button" class="ghost" @onclick="ClearAll">Erase my answers</button>
-    </div>
-    <QuestionPicker Levels="@(LinkedListReading.Levels.Select(l => new QuestionPicker.PickerLevel(l.Number, l.Title)).ToList())"
-                    Items="@(LinkedListReading.All.Select(q => new QuestionPicker.PickerItem(q.Number, q.Level, StatusOf(q))).ToList())"
-                    Current="Current.Number" OnPick="n => Go(LinkedListReading.All.First(q => q.Number == n))" />
-</header>
-
-@{
-    var q = Current;
-    var lvl = LinkedListReading.Levels.First(l => l.Number == q.Level);
-    var ok = IsOk(q);
-}
-<div class="focus-body" data-status="@StatusOf(q)">
-    <section class="focus-left" aria-label="Question @q.Number">
-        <div class="level-line">
-            <h2>Level @lvl.Number: @lvl.Title</h2>
-            <div class="level-notes">
-                @((MarkupString)lvl.NotesHtml)
-                @if (lvl.NotesHebrew is not null)
-                {
-                    <p class="he" lang="he" dir="rtl">@lvl.NotesHebrew</p>
-                }
-            </div>
-        </div>
-        <div class="card-head">
-            <span class="num">@(q.Number).</span>
-            <h3>
-                @q.Instruction
-                @if (q.InstructionHebrew is not null)
-                {
-                    <span class="he" lang="he" dir="rtl">@q.InstructionHebrew</span>
-                }
-            </h3>
-            <span class="badge">@(ok == true ? "✓ done" : "")</span>
-        </div>
-        <pre class="code">@((MarkupString)Highlight(q.Code))</pre>
-        <div class="step-nav">
-            <button type="button" disabled="@(Index == 0)" @onclick="() => Go(Index - 1)">‹ Previous</button>
-            <button type="button" class="@(ok == true ? "primary" : "")"
-                    disabled="@(Index == LinkedListReading.All.Length - 1)" @onclick="() => Go(Index + 1)">Next ›</button>
-        </div>
-    </section>
-
-    <section class="focus-right" aria-label="Your answer">
-        <h3 class="answer-title">Your answer</h3>
-        @if (q.Kind == ReadKind.Choose)
-        {
-            var picked = picks.TryGetValue(q.Number, out var c) ? c : -1;
-            <div class="choices stacked" role="radiogroup" aria-label="Answer for question @q.Number" @key="q.Number">
-                @for (int i = 0; i < q.Choices.Length; i++)
-                {
-                    var choice = i;
-                    <button type="button" role="radio" aria-checked="@(picked == choice ? "true" : "false")"
-                            class="choice @(picked == choice ? (ok == true ? "picked right" : "picked wrong") : "")"
-                            @onclick="() => Pick(q, choice)">
-                        <Output Lines="q.Choices[choice]" />
-                    </button>
-                }
-            </div>
-            <p class="verdict-line verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</p>
-        }
-        else
-        {
-            var id = $"type-{q.Number}";
-            <div class="read-answer" @key="q.Number">
-                <label class="find-label" for="@id">@(q.Kind == ReadKind.TypeList ? "list is" : "Prints")</label>
-                <input id="@id" class="find-x @(q.Kind == ReadKind.TypeList ? "wide" : "")" type="text"
-                       inputmode="@(q.Kind == ReadKind.TypeNumber ? "numeric" : "text")" autocomplete="off"
-                       placeholder="@(q.Kind == ReadKind.TypeList ? "1 -> 2 -> 3" : "")"
-                       value="@(typed.GetValueOrDefault(q.Number) ?? "")"
-                       @oninput="e => Type(q, e)" @onblur="() => Check(q)"
-                       @onkeydown="e => CheckOnEnter(q, e)" />
-                <button type="button" class="check" @onclick="() => Check(q)">Check answer</button>
-                <span class="verdict @(ok == true ? "ok" : "wrong")" aria-live="polite">@Verdict(ok)</span>
-            </div>
-        }
-        @if (ok == true && Index < LinkedListReading.All.Length - 1)
-        {
-            <p class="done-line"><button type="button" class="primary" @onclick="() => Go(Index + 1)">Next question ›</button></p>
-        }
-    <details class="api" open>
-        <summary>What an <code>IntNode</code> can do</summary>
-        <table>
-            <tbody>
-                <tr><td><code>new IntNode(5)</code></td><td>a new node holding 5, with no next node</td></tr>
-                <tr><td><code>new IntNode(5, other)</code></td><td>a new node holding 5, followed by <code>other</code></td></tr>
-                <tr><td><code>node.GetValue()</code></td><td>the number in the node</td></tr>
-                <tr><td><code>node.GetNext()</code></td><td>the next node, or <code>null</code> at the end of the list</td></tr>
-                <tr><td><code>node.SetValue(7)</code></td><td>change the number in the node</td></tr>
-                <tr><td><code>node.SetNext(other)</code></td><td>change which node comes next</td></tr>
-                <tr><td><code>node.HasNext()</code></td><td><code>true</code> if there is a next node</td></tr>
-            </tbody>
-        </table>
-    </details>
-    </section>
-</div>
-</div>
+<ReadPage Levels="LinkedListReading.Levels" Questions="LinkedListReading.All" Number="Number"
+          Title="Linked List 1" Href="linked-list-1" StorageKey="linked-list-reading-v1">
+    <Api>
+        <details class="api" open>
+            <summary>What an <code>IntNode</code> can do</summary>
+            <table>
+                <tbody>
+                    <tr><td><code>new IntNode(5)</code></td><td>a new node holding 5, with no next node</td></tr>
+                    <tr><td><code>new IntNode(5, other)</code></td><td>a new node holding 5, followed by <code>other</code></td></tr>
+                    <tr><td><code>node.GetValue()</code></td><td>the number in the node</td></tr>
+                    <tr><td><code>node.GetNext()</code></td><td>the next node, or <code>null</code> at the end of the list</td></tr>
+                    <tr><td><code>node.SetValue(7)</code></td><td>change the number in the node</td></tr>
+                    <tr><td><code>node.SetNext(other)</code></td><td>change which node comes next</td></tr>
+                    <tr><td><code>node.HasNext()</code></td><td><code>true</code> if there is a next node</td></tr>
+                </tbody>
+            </table>
+        </details>
+    </Api>
+</ReadPage>
 
 @code {
-    const string StorageKey = "linked-list-reading-v1";
-
-    // The question number from the address, like /linked-list-1/7. Without one, the page opens the
-    // first question that isn't finished yet.
     [Parameter] public int? Number { get; set; }
-
-    int? resumeNumber;
-
-    ReadQuestion Current =>
-        LinkedListReading.All.FirstOrDefault(q => q.Number == (Number ?? resumeNumber)) ?? LinkedListReading.All[0];
-
-    int Index => Array.IndexOf(LinkedListReading.All, Current);
-
-    void Go(int index) => Go(LinkedListReading.All[Math.Clamp(index, 0, LinkedListReading.All.Length - 1)]);
-
-    // replace: true so the browser's Back button leaves the page instead of stepping through questions
-    void Go(ReadQuestion q) => Nav.NavigateTo($"linked-list-1/{q.Number}", replace: true);
-
-    sealed class Saved
-    {
-        public Dictionary<int, int> Picks { get; set; } = new();
-        public Dictionary<int, string> Typed { get; set; } = new();
-        public Dictionary<int, string> Checked { get; set; } = new();
-    }
-
-    Dictionary<int, int> picks = new();
-    Dictionary<int, string> typed = new();
-    Dictionary<int, string> checkedTyped = new(); // the value each box had when it was last checked
-
-    int Total => LinkedListReading.All.Length;
-
-    int CorrectCount => LinkedListReading.All.Count(q => IsOk(q) == true);
-
-    // null = not answered yet
-    bool? IsOk(ReadQuestion q)
-    {
-        if (q.Kind == ReadKind.Choose)
-        {
-            if (!picks.TryGetValue(q.Number, out var c) || c < 0 || c >= q.Choices.Length) return null;
-            return q.Matches(q.Choices[c]);
-        }
-        // Only show a result after Check answer, Enter or Tab, and hide it again once the student edits it.
-        if (!typed.TryGetValue(q.Number, out var s) || string.IsNullOrWhiteSpace(s)) return null;
-        if (checkedTyped.GetValueOrDefault(q.Number) != s) return null;
-        return q.MatchesTyped(s);
-    }
-
-    string StatusOf(ReadQuestion q) => IsOk(q) switch { true => "pass", false => "fail", _ => "idle" };
-
-    static string Verdict(bool? ok) => ok switch { true => "✓ Correct!", false => "✗ Wrong", _ => "" };
-
-    // Colors C# keywords and comments. The code is our own, so a simple pattern is enough.
-    static readonly Regex Tokens = new(@"(//[^\n]*)|\b(int|new|null|while|for|if|else)\b");
-
-    static string Highlight(string code) =>
-        Tokens.Replace(System.Net.WebUtility.HtmlEncode(code), m =>
-            m.Groups[1].Success ? $"<span class=\"cm\">{m.Value}</span>" : $"<span class=\"kw\">{m.Value}</span>");
-
-    void Pick(ReadQuestion q, int choice)
-    {
-        picks[q.Number] = choice;
-        Save();
-    }
-
-    void Type(ReadQuestion q, ChangeEventArgs e)
-    {
-        typed[q.Number] = e.Value?.ToString() ?? "";
-        Save();
-    }
-
-    void CheckOnEnter(ReadQuestion q, KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") Check(q);
-    }
-
-    void Check(ReadQuestion q)
-    {
-        checkedTyped[q.Number] = typed.GetValueOrDefault(q.Number) ?? "";
-        Save();
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-#if DEBUG
-        foreach (var problem in LinkedListReading.Validate()) Console.WriteLine("Linked List 1: " + problem);
-#endif
-        try
-        {
-            var json = await JS.InvokeAsync<string?>("practiceStorage.load", StorageKey);
-            if (json is not null && JsonSerializer.Deserialize<Saved>(json) is { } saved)
-            {
-                picks = saved.Picks;
-                typed = saved.Typed;
-                checkedTyped = saved.Checked;
-            }
-        }
-        catch (Exception) { /* storage unavailable: start fresh */ }
-        resumeNumber = LinkedListReading.All.FirstOrDefault(q => StatusOf(q) != "pass")?.Number;
-    }
-
-    async Task ClearAll()
-    {
-        if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your answers on this page and start over?")) return;
-        picks.Clear();
-        typed.Clear();
-        checkedTyped.Clear();
-        Save();
-    }
-
-    void Save()
-    {
-        var json = JsonSerializer.Serialize(new Saved { Picks = picks, Typed = typed, Checked = checkedTyped });
-        _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
-    }
 }

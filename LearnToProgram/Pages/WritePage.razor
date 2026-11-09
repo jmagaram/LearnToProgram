@@ -1,0 +1,296 @@
+@* A "Write the code" page (Linked List 2, Arrays 2): one card per method, each with Run, compiler errors
+   and a table of tests. What differs between pages comes from a WriteCourse and the parameters below. *@
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using LearnToProgram.Practice
+@using LearnToProgram.Practice.Writing
+@inject IJSRuntime JS
+
+<div class="ccp">
+<header class="top">
+    <div>
+        <h1>@Heading</h1>
+        <p class="intro">@Intro</p>
+        @Api
+        <div class="toolbar">
+            <button type="button" class="primary" disabled="@(!ready || busy)" @onclick="RunAll">Run all</button>
+            <span class="score" aria-live="polite">Solved: @Solved of @Problems.Length@(Solved == Problems.Length ? " — Perfect! Every problem is correct!" : "")</span>
+            <button type="button" class="ghost" disabled="@busy" @onclick="ClearAll">Reset all problems</button>
+            <div class="score-detail">
+                @if (!ready)
+                {
+                    <span class="warming">Getting the C# compiler ready. The first time takes a few seconds…</span>
+                }
+                else
+                {
+                    @scoreDetail
+                }
+            </div>
+        </div>
+        <nav class="chips" aria-label="Jump to a problem">
+            @foreach (var p in Problems)
+            {
+                <a href="@Href#@Anchor(p)" data-status="@StatusOf(p)" title="@p.Name"
+                   @onclick:preventDefault @onclick="() => ScrollTo(p)">@p.Id</a>
+            }
+        </nav>
+    </div>
+</header>
+
+<div class="problems">
+    @foreach (var p in Problems)
+    {
+        var card = cards[p.Id];
+        <article class="card" id="@Anchor(p)" data-status="@StatusOf(p)">
+            <div class="card-head">
+                <span class="num">@(p.Id).</span>
+                <h3>@p.Question</h3>
+                <span class="badge">@BadgeOf(p)</span>
+            </div>
+            <div class="code">
+                <div>@Highlight(p.Signature)</div>
+                <div>{</div>
+                <textarea class="answer" rows="@RowsFor(card.Code)" spellcheck="false" autocomplete="off"
+                          autocapitalize="off" aria-label="Code for problem @p.Id"
+                          value="@card.Code" @oninput="e => OnEdit(p, e)"></textarea>
+                <div>}</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="run" disabled="@(!ready || busy)" @onclick="() => RunOne(p)">Run</button>
+                <span class="hint">@p.TestCount tests</span>
+                @if (card.Elapsed is not null)
+                {
+                    <span class="hint">· compiled and ran in @card.Elapsed</span>
+                }
+            </div>
+            @if (card.Result is { } r)
+            {
+                <div class="result @(card.Stale ? "stale" : "")" aria-live="polite">
+                    @if (r.Outcome == Outcome.NotDone)
+                    {
+                        <p class="summary">Not done yet. Replace <code>// TODO</code> with your code.</p>
+                    }
+                    else if (r.Outcome == Outcome.CompileError)
+                    {
+                        <div class="error-box">
+                            <p class="title">This won't compile</p>
+                            @foreach (var m in r.Errors)
+                            {
+                                <div class="compiler-msg">
+                                    <code class="where">@(m.Line is null ? m.Id : $"Line {m.Line}, col {m.Column}: {m.Id}")</code>
+                                    <span>@m.Message</span>
+                                    @if (m.Hint is not null)
+                                    {
+                                        <div class="tip">Tip: @m.Hint</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="summary @(r.Outcome == Outcome.Pass ? "pass" : "fail")">
+                            @(r.Outcome == Outcome.Pass ? $"All {r.Rows.Count} correct!" : $"{r.Correct} of {r.Rows.Count} correct. Keep trying.")
+                        </p>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr><th>test</th><th>your code</th><th>expected</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in r.Rows)
+                                    {
+                                        <tr class="@(row.Ok ? "" : "wrong-row")">
+                                            <td>@row.Call</td>
+                                            <td>@row.Got</td>
+                                            <td>@row.Expected</td>
+                                            <td class="@(row.Ok ? "ok" : "wrong")">@(row.Ok ? "✓ OK" : "✗ WRONG")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @foreach (var tip in Course.Tips(r))
+                        {
+                            <p class="tip-line">Tip: @tip</p>
+                        }
+                    }
+                </div>
+            }
+        </article>
+    }
+</div>
+
+<footer>
+    Your code is compiled by Roslyn, the same C# compiler that .NET uses, running in your browser with
+    WebAssembly. Nothing is sent to a server. Your code is saved in this browser.
+    A loop that runs more than a million times is stopped and reported as "never ends".
+</footer>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public WriteCourse Course { get; set; } = default!;
+
+    // The big title, like "Linked List 2: Write the code".
+    [Parameter, EditorRequired] public string Heading { get; set; } = "";
+
+    // The short instructions under the title.
+    [Parameter, EditorRequired] public RenderFragment Intro { get; set; } = default!;
+
+    // Help shown under the instructions, such as what an IntNode can do.
+    [Parameter] public RenderFragment? Api { get; set; }
+
+    // Where the student's code is saved in this browser.
+    [Parameter, EditorRequired] public string StorageKey { get; set; } = "";
+
+    // This page's address, like "linked-list-2", and the start of each problem's anchor, like "ll".
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter] public string AnchorPrefix { get; set; } = "p";
+
+    const int MinRows = 8;
+
+    sealed class CardState
+    {
+        public string Code = "";
+        public WriteResult? Result;
+        public bool Stale;
+        public string? Elapsed;
+    }
+
+    HarnessRunner runner = default!;
+    Dictionary<string, CardState> cards = new();
+
+    WriteProblem[] Problems => Course.Problems;
+
+    string Anchor(WriteProblem p) => AnchorPrefix + p.Id;
+    bool ready;
+    bool busy;
+    string scoreDetail = "";
+
+    int Solved => cards.Values.Count(c => c.Result?.Outcome == Outcome.Pass);
+
+    // Room to write several lines, growing as the student types.
+    static int RowsFor(string code) => Math.Max(MinRows, code.Split('\n').Length + 1);
+
+    static readonly Regex Keywords = new(@"\b(public|static|int|bool|void|string)\b");
+
+    static MarkupString Highlight(string signature) =>
+        new(Keywords.Replace(System.Net.WebUtility.HtmlEncode(signature), "<span class=\"kw\">$1</span>"));
+
+    string StatusOf(WriteProblem p) => cards[p.Id].Result?.Outcome switch
+    {
+        Outcome.Pass => "pass",
+        Outcome.Fail => "fail",
+        Outcome.CompileError => "error",
+        _ => "idle",
+    };
+
+    string BadgeOf(WriteProblem p) => cards[p.Id].Result switch
+    {
+        null => p.IsExample ? "example" : "",
+        { Outcome: Outcome.Pass } => "✓ solved",
+        { Outcome: Outcome.Fail } r => $"{r.Correct} of {r.Rows.Count}",
+        { Outcome: Outcome.CompileError } => "won't compile",
+        _ => "not done yet",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        runner = new HarnessRunner(Course);
+        cards = Problems.ToDictionary(p => p.Id, p => new CardState { Code = p.StartingCode });
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("practiceStorage.load", StorageKey);
+            var saved = json is null ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            if (saved is not null)
+            {
+                foreach (var (id, code) in saved)
+                {
+                    if (cards.TryGetValue(id, out var card)) card.Code = code;
+                }
+            }
+        }
+        catch (Exception) { /* storage unavailable: start fresh */ }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(50); // let the page paint before the compiler start-up blocks the thread
+        runner.WarmUp();
+        ready = true;
+        StateHasChanged();
+    }
+
+    void OnEdit(WriteProblem p, ChangeEventArgs e)
+    {
+        var card = cards[p.Id];
+        card.Code = e.Value?.ToString() ?? "";
+        card.Stale = true;
+        Save();
+    }
+
+    async Task RunOne(WriteProblem p)
+    {
+        busy = true;
+        await Task.Delay(1); // show the disabled buttons before compiling
+        // Compile every answer, so this one can call the student's other methods.
+        Apply(runner.Run(AllAnswers(), new[] { p.Id }), runner.LastElapsed);
+        busy = false;
+    }
+
+    async Task RunAll()
+    {
+        busy = true;
+        scoreDetail = "Compiling…";
+        StateHasChanged();
+        await Task.Delay(1);
+        Apply(runner.Run(AllAnswers()), null);
+        var needWork = Problems.Where(p => StatusOf(p) is "fail" or "error").Select(p => p.Id).ToList();
+        var notDone = Problems.Where(p => StatusOf(p) == "idle").Select(p => p.Id).ToList();
+        var parts = new List<string>();
+        if (needWork.Count > 0) parts.Add("Needs work: " + string.Join(", ", needWork));
+        if (notDone.Count > 0) parts.Add("Not done yet: " + string.Join(", ", notDone));
+        parts.Add($"compiled and ran in {Seconds(runner.LastElapsed)}");
+        scoreDetail = string.Join("  ·  ", parts);
+        busy = false;
+    }
+
+    List<(WriteProblem, string)> AllAnswers() => Problems.Select(p => (p, cards[p.Id].Code)).ToList();
+
+    void Apply(Dictionary<string, WriteResult> results, TimeSpan? elapsed)
+    {
+        foreach (var (id, result) in results)
+        {
+            var card = cards[id];
+            card.Result = result;
+            card.Stale = false;
+            card.Elapsed = elapsed is null ? null : Seconds(elapsed.Value);
+        }
+    }
+
+    static string Seconds(TimeSpan t) => t.TotalSeconds.ToString("0.00") + " s";
+
+    async Task ClearAll()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Erase all of your code on this page and start over?")) return;
+        foreach (var p in Problems)
+        {
+            var card = cards[p.Id];
+            card.Code = p.StartingCode;
+            card.Result = null;
+            card.Stale = false;
+            card.Elapsed = null;
+        }
+        scoreDetail = "";
+        Save();
+    }
+
+    void Save()
+    {
+        var json = JsonSerializer.Serialize(cards.ToDictionary(c => c.Key, c => c.Value.Code));
+        _ = JS.InvokeVoidAsync("practiceStorage.save", StorageKey, json).AsTask();
+    }
+
+    async Task ScrollTo(WriteProblem p) => await JS.InvokeVoidAsync("practiceScrollTo", Anchor(p));
+}

@@ -1,0 +1,15 @@
+@page "/arrays-1"
+@page "/arrays-1/{Number:int}"
+@using LearnToProgram.Practice.Arrays
+
+<ReadPage Levels="ArraysReading.Levels" Questions="ArraysReading.All" Number="Number"
+          Title="Arrays 1" Href="arrays-1" StorageKey="arrays-reading-v1"
+          TypedLabel="a is" TypedPlaceholder="{1, 2, 3}">
+    <Api>
+        <ArraysHelp Open="true" />
+    </Api>
+</ReadPage>
+
+@code {
+    [Parameter] public int? Number { get; set; }
+}
